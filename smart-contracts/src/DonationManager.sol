@@ -1,0 +1,1 @@
+Handles USDT donations, records donors, emits events.

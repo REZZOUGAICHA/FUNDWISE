@@ -1,0 +1,1 @@
+Manages fundraising campaigns (creation, tracking, status).

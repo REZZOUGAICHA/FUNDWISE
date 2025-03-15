@@ -1,0 +1,1 @@
+Controls fund distribution to NGOs based on proof submission.
