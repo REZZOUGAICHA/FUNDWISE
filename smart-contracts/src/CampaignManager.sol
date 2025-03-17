@@ -1,1 +1,1 @@
-Manages fundraising campaigns (creation, tracking, status).
+//Manages fundraising campaigns (creation, tracking, status).

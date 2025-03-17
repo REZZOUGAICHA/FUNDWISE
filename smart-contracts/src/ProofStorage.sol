@@ -1,1 +1,1 @@
-Stores proofs of fund usage (invoice, receipts) using IPFS.
+//Stores proofs of fund usage (invoice, receipts) using IPFS.
