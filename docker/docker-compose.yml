@@ -1,0 +1,8 @@
+touch docker/init-sql-db.sql
+touch backend/api-gateway/Dockerfile
+touch backend/auth-service/Dockerfile
+touch backend/notification-service/Dockerfile
+touch backend/monitoring/Dockerfile
+touch backend/donation-manager/Dockerfile
+touch backend/compaign-manager/Dockerfile
+touch backend/access-control/Dockerfile
