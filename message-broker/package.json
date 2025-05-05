@@ -1,0 +1,29 @@
+{
+    "name": "message-broker",
+    "version": "1.0.0",
+    "description": "Message broker service for Fundwise",
+    "main": "index.js",
+    "scripts": {
+        "test": "jest",
+        "test:campaign": "node test-campaign-mqtt.js"
+    },
+    "dependencies": {
+        "@nestjs/common": "^11.1.0",
+        "@nestjs/core": "^11.1.0",
+        "amqplib": "^0.10.3",
+        "mqtt": "^5.3.5",
+        "reflect-metadata": "^0.2.2",
+        "rxjs": "^7.8.2",
+        "winston": "^3.11.0"
+    },
+    "devDependencies": {
+        "jest": "^29.7.0"
+    },
+    "engines": {
+        "node": ">=14.0.0"
+    },
+    "jest": {
+        "testEnvironment": "node",
+        "testTimeout": 30000
+    }
+}
