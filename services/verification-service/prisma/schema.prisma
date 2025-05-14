@@ -1,0 +1,25 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["verification_service"]
+}
+
+model verifications {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  // Entity type: 'organization', 'campaign', or 'proof'
+  entity_type   String
+  entity_id     String   @db.Uuid
+  status        String   @default("pending")
+  reviewer_id   String?  @db.Uuid
+  review_notes  String?
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @default(now()) @db.Timestamptz(6)
+  requested_by  String   @db.Uuid
+
+  @@schema("verification_service")
+}

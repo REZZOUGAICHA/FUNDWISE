@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["campaign_service"]
+}
+
+
+model campaigns {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title           String
+  description     String
+  target_amount   Decimal   @db.Decimal
+  current_amount  Decimal   @default(0) @db.Decimal
+  start_date      DateTime  @default(now()) @db.Timestamptz(6)
+  end_date        DateTime  @db.Timestamptz(6)
+  image_url       String?
+  ipfs_hash       String?
+  status          String    @default("active")
+  organization_id String    @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @db.Timestamptz(6)
+  proofs          proofs[]
+
+  @@schema("campaign_service")
+}
+
+model proofs {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  campaign_id   String    @db.Uuid
+  description   String
+  amount_used   Decimal   @db.Decimal
+  ipfs_hash     String
+  status        String    @default("pending")
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
+  submitted_by  String    @db.Uuid
+  campaign      campaigns @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+
+  @@schema("campaign_service")
+}

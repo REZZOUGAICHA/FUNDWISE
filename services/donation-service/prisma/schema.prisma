@@ -1,0 +1,54 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["donation_service", "auth_service"]
+}
+
+model donor_transactions {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  donor_id      String    @db.Uuid
+  transaction_id String    @unique @db.Uuid
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  transaction_details transaction_details?
+  donor         profiles  @relation(fields: [donor_id], references: [id])
+
+  @@schema("donation_service")
+}
+
+model transaction_details {
+  id               String    @id @db.Uuid
+  amount           Decimal   @db.Decimal
+  encrypted_amount String?
+  campaign_id      String    @db.Uuid
+  transaction_hash String    @unique
+  status           String    @default("pending")
+  message          String?
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
+  payment_method   String
+  donor_transaction donor_transactions @relation(fields: [id], references: [transaction_id])
+
+  @@schema("donation_service")
+}
+
+model public_donation_stats {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  campaign_id String   @db.Uuid
+  amount      Decimal  @db.Decimal
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@schema("donation_service")
+}
+
+// Reference to profiles from auth_service schema to establish relation
+model profiles {
+  id                    String          @id @db.Uuid
+  email                 String          @unique
+  donor_transactions    donor_transactions[]
+
+  @@schema("auth_service")
+}
