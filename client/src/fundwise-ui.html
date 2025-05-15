@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FundWise UI</title>
+    <style>
+        :root {
+            --primary: #1a8754;
+            --primary-light: #2daa6e;
+            --primary-dark: #0d6a3c;
+            --secondary: #212529;
+            --light: #f8f9fa;
+            --gray: #6c757d;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: var(--white);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background-color: var(--secondary);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .logo {
+            color: var(--primary);
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        nav ul li {
+            margin-left: 20px;
+        }
+
+        nav ul li a {
+            color: var(--white);
+            text-decoration: none;
+        }
+
+        nav ul li a:hover {
+            color: var(--primary);
+        }
+
+        .section-title {
+            color: var(--primary);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--primary);
+        }
+
+        .card {
+            background-color: var(--secondary);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--light);
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #333;
+            border-radius: 4px;
+            background-color: #333;
+            color: var(--white);
+        }
+
+        .file-upload {
+            border: 1px dashed var(--gray);
+            padding: 15px;
+            text-align: center;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            cursor: pointer;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-light);
+        }
+
+        .btn-secondary {
+            background-color: var(--gray);
+            color: var(--white);
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+
+        .flex-container {
+            display: flex;
+            gap: 20px;
+        }
+
+        .flex-item {
+            flex: 1;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        table th, table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #333;
+            text-align: left;
+        }
+
+        table th {
+            background-color: var(--secondary);
+            color: var(--primary);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .badge-success {
+            background-color: var(--primary);
+            color: var(--white);
+        }
+
+        .badge-pending {
+            background-color: #ffc107;
+            color: #000;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 0;
+        }
+
+        .tab {
+            padding: 10px 15px;
+            cursor: pointer;
+            margin-right: 5px;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .tab.active {
+            background-color: var(--primary);
+            color: var(--white);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .progress-tracker {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .progress-tracker::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: #333;
+            z-index: 1;
+        }
+
+        .step {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            background-color: #333;
+            border-radius: 50%;
+        }
+
+        .step.active {
+            background-color: var(--primary);
+            color: var(--white);
+        }
+
+        .step.completed {
+            background-color: var(--primary-light);
+            color: var(--white);
+        }
+
+        .step-label {
+            position: absolute;
+            top: 35px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            font-size: 12px;
+        }
+
+        /* For mobile responsiveness */
+        @media (max-width: 768px) {
+            .flex-container {
+                flex-direction: column;
+            }
+
+            nav ul {
+                flex-direction: column;
+            }
+
+            nav ul li {
+                margin: 5px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">FUNDWISE</div>
+        <nav>
+            <ul>
+                <li><a href="#ngo-management">NGO Management</a></li>
+                <li><a href="#campaign-management">Campaign Management</a></li>
+                <li><a href="#fund-management">Fund Management</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="container">
+        <!-- ===== NGO MANAGEMENT SECTION ===== -->
+        <section id="ngo-management">
+            <h2 class="section-title">NGO Management</h2>
+            
+            <div class="tabs">
+                <div class="tab active" onclick="openTab(event, 'ngo-registration')">Registration</div>
+                <div class="tab" onclick="openTab(event, 'ngo-profile')">Profile View</div>
+                <div class="tab" onclick="openTab(event, 'ngo-verification')">Verification Status</div>
+            </div>
+            
+            <!-- NGO Registration Form -->
+            <div id="ngo-registration" class="tab-content active">
+                <div class="card">
+                    <h3>NGO Registration</h3>
+                    
+                    <form>
+                        <div class="form-group">
+                            <label for="org-name">Organization Name</label>
+                            <input type="text" id="org-name">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="org-mission">Mission Statement</label>
+                            <textarea id="org-mission" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="flex-container">
+                            <div class="flex-item form-group">
+                                <label for="org-email">Email</label>
+                                <input type="email" id="org-email">
+                            </div>
+                            
+                            <div class="flex-item form-group">
+                                <label for="org-phone">Phone Number</label>
+                                <input type="tel" id="org-phone">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="org-wallet">Wallet Address</label>
+                            <input type="text" id="org-wallet">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Legal Documents</label>
+                            <div class="file-upload">
+                                <i class="fa fa-upload"></i> Click to upload documents (stored via IPFS)
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <input type="checkbox" id="terms">
+                            <label for="terms">I accept the terms and conditions</label>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Register Organization</button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- NGO Profile View -->
+            <div id="ngo-profile" class="tab-content">
+                <div class="card">
+                    <div class="flex-container">
+                        <div class="flex-item">
+                            <h3>Global Relief Initiative <span class="badge badge-success">Verified</span></h3>
+                            <p>Providing emergency relief and sustainable solutions worldwide.</p>
+                            
+                            <div class="form-group">
+                                <label>Contact Information</label>
+                                <p>info@globalrelief.org | +1 555-123-4567</p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Wallet Address</label>
+                                <p>0x71C7656EC7ab88b098defB751B7401B5f6d8976F</p>
+                            </div>
+                            
+                            <button class="btn btn-primary">Edit Profile</button>
+                        </div>
+                        
+                        <div class="flex-item">
+                            <h4>Active Campaigns</h4>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Campaign</th>
+                                        <th>Status</th>
+                                        <th>Raised</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Clean Water Initiative</td>
+                                        <td><span class="badge badge-success">Active</span></td>
+                                        <td>15 ETH / 20 ETH</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Education for All</td>
+                                        <td><span class="badge badge-pending">Pending</span></td>
+                                        <td>0 ETH / 15 ETH</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- NGO Verification Status Tracker -->
+            <div id="ngo-verification" class="tab-content">
+                <div class="card">
+                    <h3>Verification Status</h3>
+                    
+                    <div class="progress-tracker">
+                        <div class="step completed">
+                            1
+                            <span class="step-label">Submission</span>
+                        </div>
+                        <div class="step active">
+                            2
+                            <span class="step-label">Document Review</span>
+                        </div>
+                        <div class="step">
+                            3
+                            <span class="step-label">Background Check</span>
+                        </div>
+                        <div class="step">
+                            4
+                            <span class="step-label">Approval</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Required Documents</label>
+                        <ul>
+                            <li>✅ Registration Certificate</li>
+                            <li>✅ Tax Exemption Document</li>
+                            <li>❌ Financial Statements (Last 2 years)</li>
+                            <li>✅ Board Member List</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Feedback from Verifiers</label>
+                        <p>Please upload the missing financial statements to proceed with the verification.</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Next Steps</label>
+                        <p>Upload the required document and our team will continue with your verification process.</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="file-upload">
+                            <i class="fa fa-upload"></i> Upload Financial Statements
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary">Submit Document</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== CAMPAIGN MANAGEMENT SECTION ===== -->
+        <section id="campaign-management">
+            <h2 class="section-title">Campaign Management</h2>
+            
+            <div class="tabs">
+                <div class="tab active" onclick="openTab(event, 'campaign-creation')">Create Campaign</div>
+                <div class="tab" onclick="openTab(event, 'campaign-management-interface')">Manage Campaigns</div>
+            </div>
+            
+            <!-- Campaign Creation Form -->
+            <div id="campaign-creation" class="tab-content active">
+                <div class="card">
+                    <h3>Create New Campaign</h3>
+                    
+                    <form>
+                        <div class="form-group">
+                            <label for="campaign-title">Campaign Title</label>
+                            <input type="text" id="campaign-title">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="campaign-description">Description</label>
+                            <textarea id="campaign-description" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="flex-container">
+                            <div class="flex-item form-group">
+                                <label for="campaign-goal">Funding Goal (ETH)</label>
+                                <input type="number" id="campaign-goal" step="0.01">
+                            </div>
+                            
+                            <div class="flex-item form-group">
+                                <label for="campaign-deadline">End Date</label>
+                                <input type="date" id="campaign-deadline">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Campaign Media</label>
+                            <div class="file-upload">
+                                <i class="fa fa-upload"></i> Upload images and videos (stored via IPFS)
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="fund-usage">Fund Usage Plan</label>
+                            <textarea id="fund-usage" rows="3" placeholder="Describe how the funds will be used"></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Create Campaign</button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Campaign Management Interface -->
+            <div id="campaign-management-interface" class="tab-content">
+                <div class="card">
+                    <h3>Your Campaigns</h3>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Campaign</th>
+                                <th>Status</th>
+                                <th>Raised</th>
+                                <th>Verification</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Clean Water Initiative</td>
+                                <td><span class="badge badge-success">Active</span></td>
+                                <td>15 ETH / 20 ETH</td>
+                                <td><span class="badge badge-success">Verified</span></td>
+                                <td>
+                                    <button class="btn btn-secondary">Edit</button>
+                                    <button class="btn btn-secondary">Pause</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Education for All</td>
+                                <td><span class="badge badge-pending">Pending</span></td>
+                                <td>0 ETH / 15 ETH</td>
+                                <td><span class="badge badge-pending">Pending</span></td>
+                                <td>
+                                    <button class="btn btn-secondary">Edit</button>
+                                    <button class="btn btn-secondary">Cancel</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Medical Supplies Drive</td>
+                                <td><span class="badge badge-success">Active</span></td>
+                                <td>5 ETH / 10 ETH</td>
+                                <td><span class="badge badge-success">Verified</span></td>
+                                <td>
+                                    <button class="btn btn-secondary">Edit</button>
+                                    <button class="btn btn-secondary">Pause</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <button class="btn btn-primary">Create New Campaign</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== FUND MANAGEMENT & VERIFICATION SECTION ===== -->
+        <section id="fund-management">
+            <h2 class="section-title">Fund Management & Verification</h2>
+            
+            <div class="tabs">
+                <div class="tab active" onclick="openTab(event, 'fund-release')">Fund Release</div>
+                <div class="tab" onclick="openTab(event, 'fund-usage-proof')">Fund Usage Proof</div>
+                <div class="tab" onclick="openTab(event, 'verification-portal')">Verification Portal</div>
+            </div>
+            
+            <!-- Fund Release Request Form -->
+            <div id="fund-release" class="tab-content active">
+                <div class="card">
+                    <h3>Fund Release Request</h3>
+                    
+                    <form>
+                        <div class="form-group">
+                            <label for="campaign-select">Select Campaign</label>
+                            <select id="campaign-select">
+                                <option>Clean Water Initiative</option>
+                                <option>Medical Supplies Drive</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="release-amount">Amount (ETH)</label>
+                            <input type="number" id="release-amount" step="0.01">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="release-purpose">Purpose Description</label>
+                            <textarea id="release-purpose" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="release-timeline">Timeline for Usage</label>
+                            <input type="text" id="release-timeline" placeholder="e.g., 2 weeks for purchasing, 1 month for distribution">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Supporting Documentation</label>
+                            <div class="file-upload">
+                                <i class="fa fa-upload"></i> Upload supporting documents (stored via IPFS)
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Submit Request</button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Proof of Fund Usage Submission -->
+            <div id="fund-usage-proof" class="tab-content">
+                <div class="card">
+                    <h3>Proof of Fund Usage</h3>
+                    
+                    <form>
+                        <div class="form-group">
+                            <label for="usage-campaign">Select Campaign</label>
+                            <select id="usage-campaign">
+                                <option>Clean Water Initiative</option>
+                                <option>Medical Supplies Drive</option>
+                            </select>
+                        </div>
+                        
+                        <div class="flex-container">
+                            <div class="flex-item form-group">
+                                <label for="released-amount">Released Amount (ETH)</label>
+                                <input type="number" id="released-amount" value="2.5" disabled>
+                            </div>
+                            
+                            <div class="flex-item form-group">
+                                <label for="used-amount">Used Amount (ETH)</label>
+                                <input type="number" id="used-amount" step="0.01">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="usage-description">Impact Description</label>
+                            <textarea id="usage-description" rows="3" placeholder="Describe how the funds were used and their impact"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Expense Documentation</label>
+                            <div class="file-upload">
+                                <i class="fa fa-upload"></i> Upload receipts, invoices, etc. (stored via IPFS)
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Submit for Verification</button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Verification Portal (Admin) -->
+            <div id="verification-portal" class="tab-content">
+                <div class="card">
+                    <h3>Verification Portal</h3>
+                    
+                    <div class="tabs">
+                        <div class="tab active" onclick="openNestedTab(event, 'pending-ngo')">NGOs</div>
+                        <div class="tab" onclick="openNestedTab(event, 'pending-campaigns')">Campaigns</div>
+                        <div class="tab" onclick="openNestedTab(event, 'pending-fund-usage')">Fund Usage</div>
+                    </div>
+                    
+                    <!-- Pending NGO Verifications -->
+                    <div id="pending-ngo" class="tab-content active">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Organization</th>
+                                    <th>Submission Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Global Relief Initiative</td>
+                                    <td>2025-05-01</td>
+                                    <td><span class="badge badge-pending">Document Review</span></td>
+                                    <td>
+                                        <button class="btn btn-primary">Review</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Community Health Alliance</td>
+                                    <td>2025-05-03</td>
+                                    <td><span class="badge badge-pending">Pending</span></td>
+                                    <td>
+                                        <button class="btn btn-primary">Review</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pending Campaign Verifications -->
+                    <div id="pending-campaigns" class="tab-content">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Campaign</th>
+                                    <th>Organization</th>
+                                    <th>Submission Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Education for All</td>
+                                    <td>Global Relief Initiative</td>
+                                    <td>2025-05-10</td>
+                                    <td>
+                                        <button class="btn btn-primary">Review</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Medical Outreach Program</td>
+                                    <td>Community Health Alliance</td>
+                                    <td>2025-05-12</td>
+                                    <td>
+                                        <button class="btn btn-primary">Review</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pending Fund Usage Proofs -->
+                    <div id="pending-fund-usage" class="tab-content">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Campaign</th>
+                                    <th>Organization</th>
+                                    <th>Amount (ETH)</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Clean Water Initiative</td>
+                                    <td>Global Relief Initiative</td>
+                                    <td>2.5</td>
+                                    <td>
+                                        <button class="btn btn-primary">Review</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Medical Supplies Drive</td>
+                                    <td>Global Relief Initiative</td>
+                                    <td>1.2</td>
+                                    <td>
+                                        <button class="btn btn-primary">Review</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Document Review Interface (simulated) -->
+                    <div class="card" style="margin-top: 20px;">
+                        <h4>Document Review</h4>
+                        
+                        <div class="flex-container">
+                            <div class="flex-item">
+                                <div class="form-group">
+                                    <label>Organization: Global Relief Initiative</label>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Document Type: Financial Statements</label>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Submission Date: 2025-05-01</label>
+                                </div>
+                            </div>
+                            
+                            <div class="flex-item">
+                                <!-- Document preview placeholder -->
+                                <div style="background-color: #333; height: 200px; display: flex; justify-content: center; align-items: center;">
+                                    [Document Preview]
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="reviewer-comments">Comments</label>
+                            <textarea id="reviewer-comments" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="flex-container">
+                            <button class="btn btn-primary">Approve</button>
+                            <button class="btn btn-secondary">Request More Info</button>
+                            <button class="btn btn-secondary">Reject</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        function openTab(evt, tabName) {
+            // Hide all tab content
+            var tabcontent = document.getElementsByClassName("tab-content");
+            for (var i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].classList.remove("active");
+            }
+            
+            // Deactivate all tabs
+            var tabs = evt.currentTarget.parentElement.getElementsByClassName("tab");
+            for (var i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove("active");
+            }
+            
+            // Show the selected tab content
+            document.getElementById(tabName).classList.add("active");
+            
+            // Activate the clicked tab
+            evt.currentTarget.classList.add("active");
+        }
+        
+        function openNestedTab(evt, tabName) {
+            // Hide all nested tab content
+            var tabcontent = evt.currentTarget.parentElement.parentElement.getElementsByClassName("tab-content");
+            for (var i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].classList.remove("active");
+            }
+            
+            // Deactivate all nested tabs
+            var tabs = evt.currentTarget.parentElement.getElementsByClassName("tab");
+            for (var i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove("active");
+            }
+            
+            // Show the selected nested tab content
+            document.getElementById(tabName).classList.add("active");
+            
+            // Activate the clicked nested tab
+            evt.currentTarget.classList.add("active");
+        }
+    </script>
+</body>
+</html>
