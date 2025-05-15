@@ -17,14 +17,13 @@ interface ServiceRegistry {
 @Injectable()
 export class ProxyMiddleware implements NestMiddleware, OnModuleInit {
   private readonly logger = new Logger(ProxyMiddleware.name);
-  private registry: ServiceRegistry = {};
   private lbCounters = new Map<string, number>();
   private breakers = new Map<string, CircuitBreaker>();
 
   //services routes
   private readonly routes = {
     '/api/public': ['http://localhost:3000'],
-    '/api/auth': ['http://localhost:4000'],
+    '/api/auth': ['http://localhost:3001'],
     '/api/private': ['http://localhost:5000'],
   };
 
