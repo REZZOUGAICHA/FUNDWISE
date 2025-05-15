@@ -2,90 +2,121 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 
+// Import the CampaignManager interface
+import "./CampaignManager.sol";
+
 /**
  * @title DonationManager
- * @dev Manages donations in USDT with focus on secure collection of funds
+ * @dev Manages the collection of donations for campaigns
  */
 contract DonationManager is Ownable, ReentrancyGuard, Pausable {
-    IERC20 public usdt;
+    using SafeERC20 for IERC20;
     
-    // Track individual donations
-    mapping(address => uint256) public donations;
+    // USDT token interface
+    IERC20 public usdtToken;
     
-    // Track total donations received
-    uint256 public totalDonationsReceived;
+    // Campaign Manager contract interface
+    CampaignManager public campaignManager;
+    
+    // Track donations
+    mapping(uint256 => uint256) public campaignDonations;          // Total donations per campaign
+    mapping(address => mapping(uint256 => uint256)) public userDonations; // Donations by user per campaign
+    mapping(uint256 => address[]) private campaignDonors;          // List of donors per campaign
     
     // Minimum donation amount (in USDT units)
     uint256 public minDonationAmount;
     
-    // Contract addresses for the other components of the system
-    address public fundDistributorContract;
-    address public proofStorageContract;
-    address public campaignManagerContract;
+    // Address authorized to transfer funds (FundReleaseManager)
+    address public fundReleaseManager;
     
-    // Events for transparency
-    event DonationReceived(address indexed donor, uint256 amount, uint256 timestamp, string campaignId);
-    event FundsTransferred(address indexed to, uint256 amount, uint256 timestamp);
+    // Events
+    event DonationReceived(uint256 indexed campaignId, address indexed donor, uint256 amount);
     event MinDonationAmountUpdated(uint256 previousAmount, uint256 newAmount);
-    event SystemContractUpdated(string contractType, address previousAddress, address newAddress);
+    event FundReleaseManagerApproved(address fundReleaseManager);
     
     /**
-     * @dev Initialize the contract with the USDT token address
-     * @param _usdtAddress The address of the USDT token contract
+     * @dev Constructor initializes the contract with required dependencies
+     * @param _usdtToken Address of the USDT token contract
+     * @param _campaignManager Address of the Campaign Manager contract
      * @param _minDonationAmount Minimum donation amount in USDT units
      */
-    constructor(address _usdtAddress, uint256 _minDonationAmount) Ownable(msg.sender) {
-        require(_usdtAddress != address(0), "Invalid USDT address");
-        usdt = IERC20(_usdtAddress);
+    constructor(
+        address _usdtToken,
+        address _campaignManager,
+        uint256 _minDonationAmount
+    ) Ownable(msg.sender) {
+        require(_usdtToken != address(0), "Invalid USDT token address");
+        require(_campaignManager != address(0), "Invalid campaign manager address");
+        
+        usdtToken = IERC20(_usdtToken);
+        campaignManager = CampaignManager(_campaignManager);
         minDonationAmount = _minDonationAmount;
     }
     
     /**
-     * @dev Allow users to donate USDT to the contract for a specific campaign
-     * @param amount The amount to donate
-     * @param campaignId The ID of the campaign being donated to
+     * @dev Donate USDT to a campaign
+     * @param _campaignId ID of the campaign to donate to
+     * @param _amount Amount of USDT to donate
+     *
+     * Donors call this to contribute to campaigns
      */
-    function donate(uint256 amount, string memory campaignId) external nonReentrant whenNotPaused {
-        require(amount >= minDonationAmount, "Donation below minimum amount");
-        require(bytes(campaignId).length > 0, "Campaign ID required");
+    function donate(uint256 _campaignId, uint256 _amount) external whenNotPaused nonReentrant {
+        require(_amount >= minDonationAmount, "Donation below minimum amount");
+        require(campaignManager.campaignExists(_campaignId), "Campaign does not exist");
+        require(campaignManager.isCampaignActive(_campaignId), "Campaign is not active");
         
-        // Check allowance before transfer
-        require(usdt.allowance(msg.sender, address(this)) >= amount, "Insufficient allowance");
+        // Transfer USDT from donor to this contract
+        usdtToken.safeTransferFrom(msg.sender, address(this), _amount);
         
-        // Transfer USDT from donor to contract
-        bool success = usdt.transferFrom(msg.sender, address(this), amount);
-        require(success, "Transfer failed");
+        // Update donation records
+        if (userDonations[msg.sender][_campaignId] == 0) {
+            campaignDonors[_campaignId].push(msg.sender);
+        }
         
-        // Update donor records
-        donations[msg.sender] += amount;
-        totalDonationsReceived += amount;
+        userDonations[msg.sender][_campaignId] += _amount;
+        campaignDonations[_campaignId] += _amount;
         
-        // Emit event with timestamp and campaign ID for transparency
-        emit DonationReceived(msg.sender, amount, block.timestamp, campaignId);
+        emit DonationReceived(_campaignId, msg.sender, _amount);
     }
     
     /**
-     * @dev Transfer funds to the fund distributor contract
-     * @param amount The amount to transfer
+     * @dev Get the total amount donated to a campaign
+     * @param _campaignId ID of the campaign
+     * @return uint256 Total donations in USDT
      */
-    function transferToDistributor(uint256 amount) external onlyOwner nonReentrant {
-        require(fundDistributorContract != address(0), "Distributor not set");
-        require(amount > 0, "Amount must be greater than zero");
-        require(amount <= usdt.balanceOf(address(this)), "Insufficient balance");
-        
-        bool success = usdt.transfer(fundDistributorContract, amount);
-        require(success, "Transfer failed");
-        
-        emit FundsTransferred(fundDistributorContract, amount, block.timestamp);
+    function getCampaignDonationTotal(uint256 _campaignId) external view returns (uint256) {
+        return campaignDonations[_campaignId];
+    }
+    
+    /**
+     * @dev Get the list of donors for a campaign
+     * @param _campaignId ID of the campaign
+     * @return address[] Array of donor addresses
+     */
+    function getCampaignDonors(uint256 _campaignId) external view returns (address[] memory) {
+        return campaignDonors[_campaignId];
+    }
+    
+    /**
+     * @dev Get the donation amount from a specific donor to a campaign
+     * @param _donor Address of the donor
+     * @param _campaignId ID of the campaign
+     * @return uint256 Donation amount in USDT
+     */
+    function getDonationAmount(address _donor, uint256 _campaignId) external view returns (uint256) {
+        return userDonations[_donor][_campaignId];
     }
     
     /**
      * @dev Set the minimum donation amount
      * @param _minDonationAmount New minimum donation amount
+     *
+     * Only owner can change the minimum donation amount
      */
     function setMinDonationAmount(uint256 _minDonationAmount) external onlyOwner {
         uint256 oldAmount = minDonationAmount;
@@ -94,40 +125,34 @@ contract DonationManager is Ownable, ReentrancyGuard, Pausable {
     }
     
     /**
-     * @dev Set the fund distributor contract address
-     * @param _fundDistributorContract The address of the fund distributor contract
+     * @dev Get the USDT balance held by this contract
+     * @return uint256 Balance in USDT
      */
-    function setFundDistributorContract(address _fundDistributorContract) external onlyOwner {
-        require(_fundDistributorContract != address(0), "Invalid address");
-        address oldAddress = fundDistributorContract;
-        fundDistributorContract = _fundDistributorContract;
-        emit SystemContractUpdated("FundDistributor", oldAddress, _fundDistributorContract);
+    function getContractBalance() external view returns (uint256) {
+        return usdtToken.balanceOf(address(this));
     }
     
     /**
-     * @dev Set the proof storage contract address
-     * @param _proofStorageContract The address of the proof storage contract
+     * @dev Approve the FundReleaseManager to spend USDT
+     * @param _fundReleaseManager Address of the FundReleaseManager contract
+     *
+     * Called by owner when setting up the FundReleaseManager
      */
-    function setProofStorageContract(address _proofStorageContract) external onlyOwner {
-        require(_proofStorageContract != address(0), "Invalid address");
-        address oldAddress = proofStorageContract;
-        proofStorageContract = _proofStorageContract;
-        emit SystemContractUpdated("ProofStorage", oldAddress, _proofStorageContract);
-    }
-    
-    /**
-     * @dev Set the campaign manager contract address
-     * @param _campaignManagerContract The address of the campaign manager contract
-     */
-    function setCampaignManagerContract(address _campaignManagerContract) external onlyOwner {
-        require(_campaignManagerContract != address(0), "Invalid address");
-        address oldAddress = campaignManagerContract;
-        campaignManagerContract = _campaignManagerContract;
-        emit SystemContractUpdated("CampaignManager", oldAddress, _campaignManagerContract);
+    function approveFundReleaseManager(address _fundReleaseManager) external onlyOwner {
+        require(_fundReleaseManager != address(0), "Invalid fund release manager address");
+        
+        // Store the fund release manager address
+        fundReleaseManager = _fundReleaseManager;
+        
+        // Approve fund release manager to spend tokens
+        usdtToken.approve(_fundReleaseManager, type(uint256).max);
+        
+        emit FundReleaseManagerApproved(_fundReleaseManager);
     }
     
     /**
      * @dev Pause the contract
+     * Only owner can pause the contract
      */
     function pause() external onlyOwner {
         _pause();
@@ -135,39 +160,23 @@ contract DonationManager is Ownable, ReentrancyGuard, Pausable {
     
     /**
      * @dev Unpause the contract
+     * Only owner can unpause the contract
      */
     function unpause() external onlyOwner {
         _unpause();
     }
     
     /**
-     * @dev Get the donation amount for a specific donor
-     * @param donor The address of the donor
-     * @return The amount donated
-     */
-    function getDonationByDonor(address donor) external view returns (uint256) {
-        return donations[donor];
-    }
-    
-    /**
-     * @dev Get the total donations received by the contract
-     * @return The total balance of USDT in the contract
-     */
-    function getContractBalance() external view returns (uint256) {
-        return usdt.balanceOf(address(this));
-    }
-    
-    /**
      * @dev Emergency function to recover tokens sent by mistake
-     * @param tokenAddress The address of the token to recover
+     * @param _token Address of the token to recover
+     * @param _amount Amount to recover
+     *
+     * Only owner can recover tokens
      */
-    function recoverToken(address tokenAddress) external onlyOwner {
-        require(tokenAddress != address(0), "Invalid token address");
-        IERC20 token = IERC20(tokenAddress);
-        uint256 balance = token.balanceOf(address(this));
-        require(balance > 0, "No tokens to recover");
+    function recoverToken(address _token, uint256 _amount) external onlyOwner {
+        require(_token != address(0), "Invalid token address");
+        require(_amount > 0, "Amount must be greater than zero");
         
-        bool success = token.transfer(owner(), balance);
-        require(success, "Recovery failed");
+        IERC20(_token).safeTransfer(owner(), _amount);
     }
 }

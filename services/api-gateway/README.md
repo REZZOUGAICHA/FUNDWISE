@@ -96,3 +96,9 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+how to run : npm run start
+the url : https://localhost:443
+the services should have either public/<continue>
+or private/
+or auth/

@@ -1,10 +1,14 @@
-import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { Module, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
+import { ProxyMiddleware } from './proxy.middleware';
+import { HealthController } from './health.controller';
 
 @Module({
-  imports: [],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [HealthController],
 })
-export class AppModule {}
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(ProxyMiddleware)
+      .forRoutes({ path: '/api/*', method: RequestMethod.ALL });
+  }
+}

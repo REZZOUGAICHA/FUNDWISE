@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  schemas  = ["auth_service"]
+}
+
+
+model profiles {
+  id                    String          @id @db.Uuid
+  email                 String          @unique
+  full_name             String
+  avatar_url            String?
+  bio                   String?
+  wallet_address        String?
+  encrypted_wallet_address String?
+  created_at            DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime        @default(now()) @db.Timestamptz(6)
+  organizations         organizations[]
+
+  @@schema("auth_service")
+}
+
+model organizations {
+  id                     String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name                   String
+  description            String
+  logo_url               String?
+  website                String?
+  created_at             DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime  @default(now()) @db.Timestamptz(6)
+  owner_id               String    @db.Uuid
+  verification_status    String    @default("pending")
+  wallet_address         String    @unique
+  encrypted_wallet_address String?
+  legal_documents_ipfs_hash String?
+  owner                  profiles  @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+
+  @@schema("auth_service")
+}
