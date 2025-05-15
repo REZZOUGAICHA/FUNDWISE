@@ -46,6 +46,8 @@ class MessageBroker {
   /**
    * Connect to RabbitMQ server
    */
+
+ 
   async connect() {
     try {
       const { protocol, hostname, port, username, password, vhost } = config.connection;
@@ -133,35 +135,34 @@ class MessageBroker {
   /**
    * Setup all configured queues and bindings
    */
-  async setupQueues() {
-    try {
-      if (!this.channel) {
-        throw new Error('No RabbitMQ channel available');
-      }
-      
-      const { queues } = config;
-      
-      // Create each queue defined in configuration and bind to its exchange
-      for (const [key, queue] of Object.entries(queues)) {
-        logger.info(`Setting up queue: ${queue.name}`);
-        
-        // Assert the queue
-        await this.channel.assertQueue(queue.name, queue.options);
-        
-        // Bind the queue to its exchange with the binding key
-        await this.channel.bindQueue(
-          queue.name,
-          queue.exchange,
-          queue.bindingKey
-        );
-      }
-      
-      logger.info('All queues and bindings created successfully');
-    } catch (error) {
-      logger.error(`Failed to setup queues: ${error.message}`);
-      throw error;
+ async setupQueues() {
+  try {
+    if (!this.channel) {
+      throw new Error('No RabbitMQ channel available');
     }
+
+    const { queues } = config;
+
+    for (const [key, queue] of Object.entries(queues)) {
+      logger.info(`Setting up queue: ${queue.name}`);
+
+      // Use provided options (including TTL, durability, priority, etc.)
+      await this.channel.assertQueue(queue.name, queue.options || {});
+
+      await this.channel.bindQueue(
+        queue.name,
+        queue.exchange,
+        queue.bindingKey
+      );
+    }
+
+    logger.info('All queues and bindings created successfully');
+  } catch (error) {
+    logger.error(`Failed to setup queues: ${error.message}`);
+    throw error;
   }
+}
+
 
   /**
    * Handle reconnection strategy

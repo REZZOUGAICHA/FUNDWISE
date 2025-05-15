@@ -1,9 +1,3 @@
-/**
- * Message Producer
- * 
- * Provides functionality for publishing messages to exchanges.
- */
-
 const broker = require('./broker');
 const { rabbitmq: config } = require('../config');
 const logger = require('../utils/logger');
@@ -11,65 +5,69 @@ const logger = require('../utils/logger');
 class Producer {
   /**
    * Publish a message to an exchange with the specified routing key
-   * 
-   * @param {string} exchange - The exchange to publish to
-   * @param {string} routingKey - The routing key for the message
-   * @param {Object} message - The message payload to send
-   * @param {Object} options - Publishing options (optional)
-   * @returns {Promise<boolean>} - Promise resolving to boolean indicating success
    */
   async publish(exchange, routingKey, message, options = {}) {
     try {
-      // Check if broker is initialized
       if (!broker.initialized) {
         await broker.init();
       }
-      
+
+      // Optional: validate exchange
+      if (!config.exchanges || !config.exchanges[exchange]) {
+        throw new Error(`Exchange "${exchange}" is not defined in RabbitMQ config`);
+      }
+
       const channel = broker.getChannel();
-      
-      // Prepare message content
       const content = Buffer.from(JSON.stringify(message));
-      
-      // Merge default options with provided options
+
       const publishOptions = {
         ...config.publishDefaults,
         ...options,
         contentType: 'application/json',
         timestamp: Date.now(),
-        messageId: options.messageId || this.generateMessageId()
+        messageId: options.messageId || this.generateMessageId(),
       };
-      
-      // Add more information if needed
+
       if (options.correlationId) {
         publishOptions.correlationId = options.correlationId;
       }
-      
-      // Publish the message
+
       const published = channel.publish(exchange, routingKey, content, publishOptions);
-      
+
       if (published) {
-        logger.debug(`Successfully published message to ${exchange} with routing key ${routingKey}`, {
-          messageId: publishOptions.messageId,
-          routingKey
+        logger.debug(`Published to ${exchange} with routing key ${routingKey}`, {
+          messageId: publishOptions.messageId
         });
       } else {
         logger.warn(`Failed to publish message to ${exchange} with routing key ${routingKey}`, {
-          messageId: publishOptions.messageId,
-          routingKey
+          messageId: publishOptions.messageId
         });
       }
-      
+
       return published;
     } catch (error) {
-      logger.error(`Error publishing message to ${exchange} with routing key ${routingKey}: ${error.message}`);
+      logger.error(`Publish error to ${exchange} (${routingKey}): ${error.message}`);
       throw error;
     }
   }
 
   /**
+   * Retry publish helper (optional enhancement)
+   */
+  async retryPublish(exchange, routingKey, message, options = {}, retries = 3, delay = 1000) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        return await this.publish(exchange, routingKey, message, options);
+      } catch (err) {
+        if (attempt === retries) throw err;
+        logger.warn(`Retrying publish (attempt ${attempt}/${retries})...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  /**
    * Generate a unique message ID
-   * 
-   * @returns {string} - Unique message ID
    */
   generateMessageId() {
     return `msg_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
