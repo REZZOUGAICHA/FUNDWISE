@@ -1,203 +1,239 @@
-//Manages fundraising campaigns (creation, tracking, status).
-// Manages fundraising campaigns (creation, tracking, status).
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
  * @title CampaignManager
- * @dev Manages the creation, tracking, and status of fundraising campaigns
+ * @dev Manages the creation and tracking of fundraising campaigns
  */
-contract CampaignManager {
-    // Structure to store campaign information
+contract CampaignManager is Ownable, ReentrancyGuard, Pausable {
+    // Struct to store campaign information
     struct Campaign {
-        uint256 id;                // Unique campaign identifier
-        address creator;           // Campaign creator's address
-        string title;              // Campaign title
-        string description;        // Detailed campaign description
-        uint256 fundingGoal;       // Funding goal in wei
-        uint256 deadline;          // Deadline in Unix timestamp
-        uint256 amountRaised;      // Total amount collected in wei
-        bool isClosed;             // Indicates if the campaign is closed
-        bool isSuccessful;         // Indicates if the campaign reached its goal
+        uint256 id;              // Unique campaign identifier
+        address ngo;             // NGO address that owns this campaign
+        string title;            // Campaign title
+        string description;      // Detailed campaign description
+        uint256 fundingGoal;     // Funding goal in USDT
+        uint256 deadline;        // Deadline in Unix timestamp
+        bool verified;           // Whether the campaign has been verified
+        bool active;             // Whether the campaign is currently active
+        uint256 timestamp;       // When the campaign was created
     }
 
     // State variables
-    uint256 private campaignCount;              // Campaign counter
-    mapping(uint256 => Campaign) public campaigns;  // Mapping of campaigns by ID
-    mapping(uint256 => mapping(address => uint256)) public donations;  // Donations by campaign and address
-    mapping(uint256 => address[]) public donators;  // List of donors per campaign
+    uint256 private campaignCount;                    // Campaign counter
+    mapping(uint256 => Campaign) private campaigns;   // Mapping of campaigns by ID
+    mapping(address => uint256[]) private ngoCampaigns; // Campaigns by NGO
+    mapping(address => bool) public verifiers;        // Authorized campaign verifiers
 
     // Events
-    event CampaignCreated(uint256 indexed campaignId, address indexed creator, string title, uint256 fundingGoal);
-    event DonationReceived(uint256 indexed campaignId, address indexed donor, uint256 amount);
-    event CampaignClosed(uint256 indexed campaignId, bool isSuccessful, uint256 amountRaised);
-    event FundsWithdrawn(uint256 indexed campaignId, address indexed recipient, uint256 amount);
+    event CampaignCreated(uint256 indexed campaignId, address indexed ngo, string title, uint256 fundingGoal);
+    event CampaignVerified(uint256 indexed campaignId, address indexed verifier);
+    event CampaignActivated(uint256 indexed campaignId);
+    event CampaignDeactivated(uint256 indexed campaignId);
+    event VerifierAdded(address indexed verifier);
+    event VerifierRemoved(address indexed verifier);
 
     // Modifiers
-    modifier onlyCampaignCreator(uint256 _campaignId) {
-        require(campaigns[_campaignId].creator == msg.sender, "Only the campaign creator can perform this action");
+    modifier onlyVerifier() {
+        require(verifiers[msg.sender] || owner() == msg.sender, "Not authorized as verifier");
         _;
     }
 
-    modifier campaignExists(uint256 _campaignId) {
-        require(_campaignId > 0 && _campaignId <= campaignCount, "The campaign does not exist");
-        _;
-    }
-
-    modifier campaignActive(uint256 _campaignId) {
-        require(!campaigns[_campaignId].isClosed, "The campaign is already closed");
-        require(block.timestamp < campaigns[_campaignId].deadline, "The campaign has exceeded its deadline");
+    modifier campaignExistsModifier(uint256 _campaignId) {
+        require(_campaignId > 0 && _campaignId <= campaignCount, "Campaign does not exist");
         _;
     }
 
     /**
-     * @dev Creates a new fundraising campaign
+     * @dev Constructor adds the contract deployer as the first verifier
+     */
+    constructor() Ownable(msg.sender) {
+        verifiers[msg.sender] = true;
+        emit VerifierAdded(msg.sender);
+    }
+
+    /**
+     * @dev Add a new verifier
+     * @param _verifier Address of the verifier to add
+     */
+    function addVerifier(address _verifier) external onlyOwner {
+        require(_verifier != address(0), "Invalid verifier address");
+        require(!verifiers[_verifier], "Already a verifier");
+        
+        verifiers[_verifier] = true;
+        emit VerifierAdded(_verifier);
+    }
+
+    /**
+     * @dev Remove a verifier
+     * @param _verifier Address of the verifier to remove
+     */
+    function removeVerifier(address _verifier) external onlyOwner {
+        require(verifiers[_verifier], "Not a verifier");
+        
+        verifiers[_verifier] = false;
+        emit VerifierRemoved(_verifier);
+    }
+
+    /**
+     * @dev Create a new campaign
      * @param _title Campaign title
      * @param _description Campaign description
-     * @param _fundingGoal Funding goal in wei
+     * @param _fundingGoal Funding goal in USDT
      * @param _durationInDays Campaign duration in days
-     * @return ID of the created campaign
+     * @return uint256 The ID of the created campaign
+     *
+     * NGOs call this to initiate a new fundraising campaign
      */
     function createCampaign(
         string memory _title,
         string memory _description,
         uint256 _fundingGoal,
         uint256 _durationInDays
-    ) external returns (uint256) {
-        require(bytes(_title).length > 0, "The title cannot be empty");
-        require(_fundingGoal > 0, "The funding goal must be greater than zero");
-        require(_durationInDays > 0, "The duration must be greater than zero");
+    ) external whenNotPaused nonReentrant returns (uint256) {
+        require(bytes(_title).length > 0, "Title cannot be empty");
+        require(bytes(_description).length > 0, "Description cannot be empty");
+        require(_fundingGoal > 0, "Funding goal must be greater than zero");
+        require(_durationInDays > 0, "Duration must be greater than zero");
 
+        // Increment campaign counter
         campaignCount++;
-        uint256 campaignId = campaignCount;
-
-        campaigns[campaignId] = Campaign({
-            id: campaignId,
-            creator: msg.sender,
+        
+        // Create the campaign
+        campaigns[campaignCount] = Campaign({
+            id: campaignCount,
+            ngo: msg.sender,
             title: _title,
             description: _description,
             fundingGoal: _fundingGoal,
             deadline: block.timestamp + (_durationInDays * 1 days),
-            amountRaised: 0,
-            isClosed: false,
-            isSuccessful: false
+            verified: false,
+            active: false,
+            timestamp: block.timestamp
         });
-
-        emit CampaignCreated(campaignId, msg.sender, _title, _fundingGoal);
-        return campaignId;
-    }
-
-    /**
-     * @dev Allows a user to donate to a campaign
-     * @param _campaignId Campaign ID
-     */
-    function donate(uint256 _campaignId) external payable campaignExists(_campaignId) campaignActive(_campaignId) {
-        require(msg.value > 0, "The donation amount must be greater than zero");
-
-        Campaign storage campaign = campaigns[_campaignId];
         
-        // If this is the user's first donation for this campaign, add to the donor list
-        if (donations[_campaignId][msg.sender] == 0) {
-            donators[_campaignId].push(msg.sender);
-        }
+        // Track this campaign for the NGO
+        ngoCampaigns[msg.sender].push(campaignCount);
         
-        // Update the donation amount for this user
-        donations[_campaignId][msg.sender] += msg.value;
-        
-        // Update the total amount collected
-        campaign.amountRaised += msg.value;
-        
-        emit DonationReceived(_campaignId, msg.sender, msg.value);
-    }
-
-    /**
-     * @dev Closes a campaign (manually or automatically)
-     * @param _campaignId Campaign ID
-     */
-    function closeCampaign(uint256 _campaignId) external campaignExists(_campaignId) {
-        Campaign storage campaign = campaigns[_campaignId];
-        
-        // The campaign can be closed by its creator or if the deadline is exceeded
-        require(campaign.creator == msg.sender || block.timestamp >= campaign.deadline, 
-                "Only the creator can close the campaign before its deadline");
-        require(!campaign.isClosed, "The campaign is already closed");
-        
-        campaign.isClosed = true;
-        campaign.isSuccessful = campaign.amountRaised >= campaign.fundingGoal;
-        
-        emit CampaignClosed(_campaignId, campaign.isSuccessful, campaign.amountRaised);
-    }
-
-    /**
-     * @dev Allows the creator to withdraw funds after a successful campaign
-     * @param _campaignId Campaign ID
-     */
-    function withdrawFunds(uint256 _campaignId) external campaignExists(_campaignId) onlyCampaignCreator(_campaignId) {
-        Campaign storage campaign = campaigns[_campaignId];
-        
-        require(campaign.isClosed, "The campaign must be closed");
-        require(campaign.isSuccessful, "The campaign did not reach its goal");
-        require(campaign.amountRaised > 0, "No funds to withdraw");
-        
-        uint256 amountToWithdraw = campaign.amountRaised;
-        campaign.amountRaised = 0;
-        
-        // Transfer funds to the creator
-        (bool success, ) = payable(campaign.creator).call{value: amountToWithdraw}("");
-        require(success, "Transfer failed");
-        
-        emit FundsWithdrawn(_campaignId, campaign.creator, amountToWithdraw);
-    }
- 
-    function getCampaignDetails(uint256 _campaignId) external view campaignExists(_campaignId) returns (
-        uint256 id,
-        address creator,
-        string memory title,
-        string memory description,
-        uint256 fundingGoal,
-        uint256 deadline,
-        uint256 amountRaised,
-        bool isClosed,
-        bool isSuccessful
-    ) {
-        Campaign storage campaign = campaigns[_campaignId];
-        return (
-            campaign.id,
-            campaign.creator,
-            campaign.title,
-            campaign.description,
-            campaign.fundingGoal,
-            campaign.deadline,
-            campaign.amountRaised,
-            campaign.isClosed,
-            campaign.isSuccessful
-        );
-    }
-
-    /**
-     * @dev Retrieves the total number of campaigns
-     * @return The number of campaigns
-     */
-    function getCampaignCount() external view returns (uint256) {
+        emit CampaignCreated(campaignCount, msg.sender, _title, _fundingGoal);
         return campaignCount;
     }
 
     /**
-     * @dev Retrieves the list of donors for a campaign
-     * @param _campaignId Campaign ID
-     * @return List of donor addresses
+     * @dev Verify a campaign
+     * @param _campaignId ID of the campaign to verify
+     *
+     * Verifiers call this after reviewing campaign details and NGO credentials
      */
-    function getCampaignDonators(uint256 _campaignId) external view campaignExists(_campaignId) returns (address[] memory) {
-        return donators[_campaignId];
+    function verifyCampaign(uint256 _campaignId) external campaignExistsModifier(_campaignId) onlyVerifier {
+        Campaign storage campaign = campaigns[_campaignId];
+        require(!campaign.verified, "Campaign already verified");
+        
+        campaign.verified = true;
+        emit CampaignVerified(_campaignId, msg.sender);
     }
 
     /**
-     * @dev Checks if a campaign is active
-     * @param _campaignId Campaign ID
-     * @return true if the campaign is active, false otherwise
+     * @dev Activate a campaign to allow donations
+     * @param _campaignId ID of the campaign to activate
+     *
+     * Only verifiers can activate a campaign after verification
      */
-    function isCampaignActive(uint256 _campaignId) external view campaignExists(_campaignId) returns (bool) {
+    function activateCampaign(uint256 _campaignId) external campaignExistsModifier(_campaignId) onlyVerifier {
         Campaign storage campaign = campaigns[_campaignId];
-        return (!campaign.isClosed && block.timestamp < campaign.deadline);
+        require(campaign.verified, "Campaign must be verified first");
+        require(!campaign.active, "Campaign already active");
+        
+        campaign.active = true;
+        emit CampaignActivated(_campaignId);
+    }
+
+    /**
+     * @dev Deactivate a campaign to pause donations
+     * @param _campaignId ID of the campaign to deactivate
+     *
+     * Only verifiers can deactivate a campaign
+     */
+    function deactivateCampaign(uint256 _campaignId) external campaignExistsModifier(_campaignId) onlyVerifier {
+        Campaign storage campaign = campaigns[_campaignId];
+        require(campaign.active, "Campaign already inactive");
+        
+        campaign.active = false;
+        emit CampaignDeactivated(_campaignId);
+    }
+
+    /**
+     * @dev Check if a campaign exists
+     * @param _campaignId ID of the campaign
+     * @return bool Whether the campaign exists
+     */
+    function campaignExists(uint256 _campaignId) public view returns (bool) {
+        return _campaignId > 0 && _campaignId <= campaignCount;
+    }
+
+    /**
+     * @dev Get the NGO address associated with a campaign
+     * @param _campaignId ID of the campaign
+     * @return address NGO address
+     */
+    function getCampaignNGO(uint256 _campaignId) external view campaignExistsModifier(_campaignId) returns (address) {
+        return campaigns[_campaignId].ngo;
+    }
+
+    /**
+     * @dev Get the funding goal for a campaign
+     * @param _campaignId ID of the campaign
+     * @return uint256 Funding goal in USDT
+     */
+    function getCampaignGoal(uint256 _campaignId) external view campaignExistsModifier(_campaignId) returns (uint256) {
+        return campaigns[_campaignId].fundingGoal;
+    }
+
+    /**
+     * @dev Get full campaign details
+     * @param _campaignId ID of the campaign
+     * @return Campaign struct containing all campaign details
+     */
+    function getCampaign(uint256 _campaignId) external view campaignExistsModifier(_campaignId) returns (Campaign memory) {
+        return campaigns[_campaignId];
+    }
+
+    /**
+     * @dev Get all campaigns created by an NGO
+     * @param _ngo Address of the NGO
+     * @return uint256[] Array of campaign IDs
+     */
+    function getNGOCampaigns(address _ngo) external view returns (uint256[] memory) {
+        return ngoCampaigns[_ngo];
+    }
+
+    /**
+     * @dev Check if a campaign is active for donations
+     * @param _campaignId ID of the campaign
+     * @return bool Whether the campaign is active
+     */
+    function isCampaignActive(uint256 _campaignId) external view campaignExistsModifier(_campaignId) returns (bool) {
+        Campaign storage campaign = campaigns[_campaignId];
+        return campaign.active && campaign.verified && block.timestamp <= campaign.deadline;
+    }
+
+    /**
+     * @dev Pause the contract
+     * Only owner can pause the contract
+     */
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /**
+     * @dev Unpause the contract
+     * Only owner can unpause the contract
+     */
+    function unpause() external onlyOwner {
+        _unpause();
     }
 }
