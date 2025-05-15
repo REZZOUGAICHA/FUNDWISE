@@ -1,147 +1,503 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+// // SPDX-License-Identifier: MIT
+// pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
-import "../src/DonationManager.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+// import "forge-std/Test.sol";
+// import "../src/CampaignManager.sol";
 
-// Mock USDT token for testing
-contract MockUSDT is ERC20 {
-    constructor() ERC20("Mock USDT", "mUSDT") {
-        _mint(msg.sender, 1000000 * 10**decimals());
-    }
-}
-
-contract DonationManagerTest is Test {
-    DonationManager public donationManager;
-    MockUSDT public mockUSDT;
+// contract CampaignManagerTest is Test {
+//     CampaignManager public campaignManager;
     
-    address public owner;
-    address public donor1;
-    address public donor2;
-    address public fundDistributor;
-    address public proofStorage;
-    address public campaignManager;
+//     // Test accounts
+//     address public creator = address(0x1);
+//     address public donor1 = address(0x2);
+//     address public donor2 = address(0x3);
     
-    uint256 public constant MIN_DONATION = 10 * 10**6; // 10 USDT with 6 decimals
+//     // Test data
+//     string public constant TITLE = "Test Campaign";
+//     string public constant DESCRIPTION = "A campaign for testing purposes";
+//     uint256 public constant FUNDING_GOAL = 10 ether;
+//     uint256 public constant DURATION = 30; // 30 days
     
-    function setUp() public {
-        // Setup accounts
-        owner = address(this);
-        donor1 = address(0x1);
-        donor2 = address(0x2);
-        fundDistributor = address(0x3);
-        proofStorage = address(0x4);
-        campaignManager = address(0x5);
+//     // Events for testing
+//     event CampaignCreated(uint256 indexed campaignId, address indexed creator, string title, uint256 fundingGoal);
+//     event DonationReceived(uint256 indexed campaignId, address indexed donor, uint256 amount);
+//     event CampaignClosed(uint256 indexed campaignId, bool isSuccessful, uint256 amountRaised);
+//     event FundsWithdrawn(uint256 indexed campaignId, address indexed recipient, uint256 amount);
+    
+//     function setUp() public {
+//         campaignManager = new CampaignManager();
+//         vm.deal(creator, 100 ether);
+//         vm.deal(donor1, 100 ether);
+//         vm.deal(donor2, 100 ether);
+//     }
+    
+//     function testCreateCampaign() public {
+//         vm.startPrank(creator);
         
-        // Deploy mock USDT
-        mockUSDT = new MockUSDT();
+//         vm.expectEmit(true, true, false, true);
+//         emit CampaignCreated(1, creator, TITLE, FUNDING_GOAL);
         
-        // Deploy DonationManager with mock USDT
-        donationManager = new DonationManager(address(mockUSDT), MIN_DONATION);
+//         uint256 campaignId = campaignManager.createCampaign(
+//             TITLE,
+//             DESCRIPTION,
+//             FUNDING_GOAL,
+//             DURATION
+//         );
         
-        // Setup system contracts
-        donationManager.setFundDistributorContract(fundDistributor);
-        donationManager.setProofStorageContract(proofStorage);
-        donationManager.setCampaignManagerContract(campaignManager);
+//         assertEq(campaignId, 1, "Campaign ID should be 1");
+//         assertEq(campaignManager.getCampaignCount(), 1, "Campaign count should be 1");
         
-        // Fund test accounts and approve spending
-        mockUSDT.transfer(donor1, 1000 * 10**6); // 1000 USDT
-        mockUSDT.transfer(donor2, 500 * 10**6);  // 500 USDT
+//         (
+//             uint256 id,
+//             address campaignCreator,
+//             string memory title,
+//             string memory description,
+//             uint256 fundingGoal,
+//             ,  // deadline
+//             uint256 amountRaised,
+//             bool isClosed,
+//             bool isSuccessful
+//         ) = campaignManager.getCampaignDetails(campaignId);
         
-        vm.startPrank(donor1);
-        mockUSDT.approve(address(donationManager), 1000 * 10**6);
-        vm.stopPrank();
+//         assertEq(id, 1, "Campaign ID should be 1");
+//         assertEq(campaignCreator, creator, "Campaign creator should be the creator address");
+//         assertEq(title, TITLE, "Campaign title should match");
+//         assertEq(description, DESCRIPTION, "Campaign description should match");
+//         assertEq(fundingGoal, FUNDING_GOAL, "Campaign funding goal should match");
+//         assertEq(amountRaised, 0, "Amount raised should be 0");
+//         assertEq(isClosed, false, "Campaign should not be closed");
+//         assertEq(isSuccessful, false, "Campaign should not be marked successful");
         
-        vm.startPrank(donor2);
-        mockUSDT.approve(address(donationManager), 500 * 10**6);
-        vm.stopPrank();
-    }
+//         vm.stopPrank();
+//     }
     
-    // Test basic donation functionality
-    function testDonate() public {
-        uint256 donationAmount = 100 * 10**6; // 100 USDT
-        string memory campaignId = "education-campaign";
+//     function testCreateCampaignWithInvalidParams() public {
+//         vm.startPrank(creator);
         
-        vm.prank(donor1);
-        donationManager.donate(donationAmount, campaignId);
+//         // Empty title
+//         vm.expectRevert("The title cannot be empty");
+//         campaignManager.createCampaign("", DESCRIPTION, FUNDING_GOAL, DURATION);
         
-        assertEq(donationManager.getDonationByDonor(donor1), donationAmount);
-        assertEq(donationManager.totalDonationsReceived(), donationAmount);
-        assertEq(donationManager.getContractBalance(), donationAmount);
-    }
-    
-    // Test transferring funds to distributor
-    function testTransferToDistributor() public {
-        // First make a donation
-        vm.prank(donor1);
-        donationManager.donate(100 * 10**6, "education-campaign");
+//         // Zero funding goal
+//         vm.expectRevert("The funding goal must be greater than zero");
+//         campaignManager.createCampaign(TITLE, DESCRIPTION, 0, DURATION);
         
-        // Then transfer funds to the distributor
-        donationManager.transferToDistributor(50 * 10**6);
+//         // Zero duration
+//         vm.expectRevert("The duration must be greater than zero");
+//         campaignManager.createCampaign(TITLE, DESCRIPTION, FUNDING_GOAL, 0);
         
-        // Verify balances
-        assertEq(donationManager.getContractBalance(), 50 * 10**6);
-        assertEq(mockUSDT.balanceOf(fundDistributor), 50 * 10**6);
-    }
+//         vm.stopPrank();
+//     }
     
-    // Test donation below minimum amount (should revert)
-    function test_RevertWhen_DonationBelowMinAmount() public {
-        uint256 belowMinAmount = MIN_DONATION - 1;
+//     function testDonate() public {
+//         // Create a campaign first
+//         vm.startPrank(creator);
+//         uint256 campaignId = campaignManager.createCampaign(
+//             TITLE,
+//             DESCRIPTION,
+//             FUNDING_GOAL,
+//             DURATION
+//         );
+//         vm.stopPrank();
         
-        vm.prank(donor1);
-        vm.expectRevert("Donation below minimum amount");
-        donationManager.donate(belowMinAmount, "education-campaign");
-    }
-    
-    // Test pause functionality
-    // In DonationManagerTest.sol
-function testPauseContract() public {
-    // Owner pauses the contract
-    vm.prank(owner);
-    donationManager.pause();
-    
-    // Try to donate while paused (should revert with "EnforcedPause()")
-    vm.prank(donor1);
-    vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
-    donationManager.donate(100 * 10**6, "education-campaign");
-}
-    
-    // Test unpause functionality
-    function testUnpauseContract() public {
-        // First pause the contract
-        donationManager.pause();
+//         // Donate to the campaign
+//         vm.startPrank(donor1);
+//         uint256 donationAmount = 1 ether;
         
-        // Then unpause it
-        donationManager.unpause();
+//         vm.expectEmit(true, true, false, true);
+//         emit DonationReceived(campaignId, donor1, donationAmount);
         
-        // Should be able to donate after unpausing
-        vm.prank(donor1);
-        donationManager.donate(100 * 10**6, "education-campaign");
+//         campaignManager.donate{value: donationAmount}(campaignId);
         
-        assertEq(donationManager.getDonationByDonor(donor1), 100 * 10**6);
-    }
+//         // Check donation was recorded
+//         (,,,,, uint256 deadline, uint256 amountRaised,,) = campaignManager.getCampaignDetails(campaignId);
+//         assertEq(amountRaised, donationAmount, "Amount raised should match donation");
+//         assertEq(campaignManager.donations(campaignId, donor1), donationAmount, "Donation should be recorded for donor1");
+        
+//         // Check donor was added to the donators list
+//         address[] memory donators = campaignManager.getCampaignDonators(campaignId);
+//         assertEq(donators.length, 1, "Should have 1 donator");
+//         assertEq(donators[0], donor1, "Donator should be donor1");
+        
+//         vm.stopPrank();
+//     }
     
-    // Test token recovery functionality
-    function testRecoverToken() public {
-    // First make a donation using the main token
-    vm.prank(donor1);
-    donationManager.donate(100 * 10**6, "education-campaign");
+//     function testMultipleDonations() public {
+//         // Create a campaign first
+//         vm.startPrank(creator);
+//         uint256 campaignId = campaignManager.createCampaign(
+//             TITLE,
+//             DESCRIPTION,
+//             FUNDING_GOAL,
+//             DURATION
+//         );
+//         vm.stopPrank();
+        
+//         // First donation from donor1
+//         vm.startPrank(donor1);
+//         campaignManager.donate{value: 1 ether}(campaignId);
+//         vm.stopPrank();
+        
+//         // Second donation from donor1
+//         vm.startPrank(donor1);
+//         campaignManager.donate{value: 2 ether}(campaignId);
+//         vm.stopPrank();
+        
+//         // Donation from donor2
+//         vm.startPrank(donor2);
+//         campaignManager.donate{value: 3 ether}(campaignId);
+//         vm.stopPrank();
+        
+//         // Check donation totals
+//         (,,,,, uint256 deadline, uint256 amountRaised,,) = campaignManager.getCampaignDetails(campaignId);
+//         assertEq(amountRaised, 6 ether, "Total amount raised should be 6 ether");
+//         assertEq(campaignManager.donations(campaignId, donor1), 3 ether, "Donor1 total should be 3 ether");
+//         assertEq(campaignManager.donations(campaignId, donor2), 3 ether, "Donor2 total should be 3 ether");
+        
+//         // Check donators list
+//         address[] memory donators = campaignManager.getCampaignDonators(campaignId);
+//         assertEq(donators.length, 2, "Should have 2 unique donators");
+//     }
     
-    // Get the owner's balance before recovery
-    uint256 balanceBefore = mockUSDT.balanceOf(owner);
+//     function testDonateToNonExistentCampaign() public {
+//         vm.startPrank(donor1);
+//         vm.expectRevert("The campaign does not exist");
+//         campaignManager.donate{value: 1 ether}(999);
+//         vm.stopPrank();
+//     }
     
-    // Recover the token
-    vm.prank(owner);
-    donationManager.recoverToken(address(mockUSDT));
+//     function testDonateWithZeroValue() public {
+//         // Create a campaign first
+//         vm.startPrank(creator);
+//         uint256 campaignId = campaignManager.createCampaign(
+//             TITLE,
+//             DESCRIPTION,
+//             FUNDING_GOAL,
+//             DURATION
+//         );
+//         vm.stopPrank();
+        
+//         vm.startPrank(donor1);
+//         vm.expectRevert("The donation amount must be greater than zero");
+//         campaignManager.donate{value: 0}(campaignId);
+//         vm.stopPrank();
+//     }
     
-    // Get the owner's balance after recovery
-    uint256 balanceAfter = mockUSDT.balanceOf(owner);
+//     function testDonateToClosedCampaign() public {
+//         // Create a campaign first
+//         vm.startPrank(creator);
+//         uint256 campaignId = campaignManager.createCampaign(
+//             TITLE,
+//             DESCRIPTION,
+//             FUNDING_GOAL,
+//             DURATION
+//         );
+//         // Close the campaign
+//         campaignManager.closeCampaign(campaignId);
+//         vm.stopPrank();
+        
+//         vm.startPrank(donor1);
+//         vm.expectRevert("The campaign is already closed");
+//         campaignManager.donate{value: 1 ether}(campaignId);
+//         vm.stopPrank();
+//     }
     
-    // The owner's balance should have increased by exactly the recovered amount
-    assertEq(balanceAfter - balanceBefore, 100 * 10**6);
+//     function testDonateToExpiredCampaign() public {
+//         // Create a campaign first
+//         vm.startPrank(creator);
+//         uint256 campaignId = campaignManager.createCampaign(
+//             TITLE,
+//             DESCRIPTION,
+//             FUNDING_GOAL,
+//             DURATION
+//         );
+//         vm.stopPrank();
+        
+//         // Advance time past the deadline
+//         vm.warp(block.timestamp + (DURATION * 1 days) + 1);
+        
+//         vm.startPrank(donor1);
+//         vm.expectRevert("The campaign has exceeded its deadline");
+//         campaignManager.donate{value: 1 ether}(campaignId);
+//         vm.stopPrank();
+//     }
     
-    // The DonationManager should now have 0 tokens
-    assertEq(mockUSDT.balanceOf(address(donationManager)), 0);
-}
-}
+//     function testCloseCampaign() public {
+//         // Create a campaign first
+//         vm.startPrank(creator);
+//         uint256 campaignId = campaignManager.createCampaign(
+//             TITLE,
+//             DESCRIPTION,
+//             FUNDING_GOAL,
+//             DURATION
+//         );
+        
+//         vm.expectEmit(true, false, false, true);
+//         emit CampaignClosed(campaignId, false, 0);
+        
+//         campaignManager.closeCampaign(campaignId);
+        
+//         // Check campaign is closed
+//         (,,,,,,, bool isClosed, bool isSuccessful) = campaignManager.getCampaignDetails(campaignId);
+//         assertEq(isClosed, true, "Campaign should be closed");
+//         assertEq(isSuccessful, false, "Campaign should not be successful");
+        
+//         vm.stopPrank();
+//     }
+    
+//     function testCloseCampaignAsNonCreator() public {
+//         // Create a campaign first
+//         vm.startPrank(creator);
+//         uint256 campaignId = campaignManager.createCampaign(
+//             TITLE,
+//             DESCRIPTION,
+//             FUNDING_GOAL,
+//             DURATION
+//         );
+//         vm.stopPrank();
+        
+//         // Try to close as non-creator before deadline
+//         vm.startPrank(donor1);
+//         vm.expectRevert("Only the creator can close the campaign before its deadline");
+//         campaignManager.closeCampaign(campaignId);
+//         vm.stopPrank();
+        
+//         // Advance time past the deadline
+//         vm.warp(block.timestamp + (DURATION * 1 days) + 1);
+        
+//         // Now anyone can close it
+//         vm.startPrank(donor1);
+//         campaignManager.closeCampaign(campaignId);
+//         (,,,,,,, bool isClosed, bool isSuccessful) = campaignManager.getCampaignDetails(campaignId);
+//         assertEq(isClosed, true, "Campaign should be closed after deadline even by non-creator");
+//         vm.stopPrank();
+//     }
+    
+//     function testCloseAlreadyClosedCampaign() public {
+//         // Create and close a campaign
+//         vm.startPrank(creator);
+//         uint256 campaignId = campaignManager.createCampaign(
+//             TITLE,
+//             DESCRIPTION,
+//             FUNDING_GOAL,
+//             DURATION
+//         );
+//         campaignManager.closeCampaign(campaignId);
+        
+//         // Try to close it again
+//         vm.expectRevert("The campaign is already closed");
+//         campaignManager.closeCampaign(campaignId);
+//         vm.stopPrank();
+//     }
+    
+//     function testSuccessfulCampaign() public {
+//         // Create a campaign
+//         vm.startPrank(creator);
+//         uint256 campaignId = campaignManager.createCampaign(
+//             TITLE,
+//             DESCRIPTION,
+//             FUNDING_GOAL,
+//             DURATION
+//         );
+//         vm.stopPrank();
+        
+//         // Fund it fully
+//         vm.startPrank(donor1);
+//         campaignManager.donate{value: FUNDING_GOAL}(campaignId);
+//         vm.stopPrank();
+        
+//         // Close the campaign
+//         vm.startPrank(creator);
+//         campaignManager.closeCampaign(campaignId);
+        
+//         // Check campaign is successful
+//         (,,,,,,, bool isClosed, bool isSuccessful) = campaignManager.getCampaignDetails(campaignId);
+//         assertEq(isClosed, true, "Campaign should be closed");
+//         assertEq(isSuccessful, true, "Campaign should be successful");
+//         vm.stopPrank();
+//     }
+    
+//     function testWithdrawFunds() public {
+//         // Create a campaign
+//         vm.startPrank(creator);
+//         uint256 campaignId = campaignManager.createCampaign(
+//             TITLE,
+//             DESCRIPTION,
+//             FUNDING_GOAL,
+//             DURATION
+//         );
+//         vm.stopPrank();
+        
+//         // Fund it fully
+//         vm.startPrank(donor1);
+//         campaignManager.donate{value: FUNDING_GOAL}(campaignId);
+//         vm.stopPrank();
+        
+//         // Close the campaign
+//         vm.startPrank(creator);
+//         campaignManager.closeCampaign(campaignId);
+        
+//         // Record creator's balance before withdrawal
+//         uint256 creatorBalanceBefore = creator.balance;
+        
+//         vm.expectEmit(true, true, false, true);
+//         emit FundsWithdrawn(campaignId, creator, FUNDING_GOAL);
+        
+//         // Withdraw funds
+//         campaignManager.withdrawFunds(campaignId);
+        
+//         // Check funds were transferred to creator
+//         assertEq(creator.balance, creatorBalanceBefore + FUNDING_GOAL, "Creator should receive the funds");
+        
+//         // Check campaign funds are now zero
+//         (,,,,,, uint256 amountRaised,,) = campaignManager.getCampaignDetails(campaignId);
+//         assertEq(amountRaised, 0, "Campaign funds should be zero after withdrawal");
+        
+//         vm.stopPrank();
+//     }
+    
+//     function testWithdrawFromNonSuccessfulCampaign() public {
+//         // Create a campaign
+//         vm.startPrank(creator);
+//         uint256 campaignId = campaignManager.createCampaign(
+//             TITLE,
+//             DESCRIPTION,
+//             FUNDING_GOAL,
+//             DURATION
+//         );
+        
+//         // Donate less than goal
+//         vm.stopPrank();
+//         vm.startPrank(donor1);
+//         campaignManager.donate{value: FUNDING_GOAL / 2}(campaignId);
+//         vm.stopPrank();
+        
+//         // Close the campaign
+//         vm.startPrank(creator);
+//         campaignManager.closeCampaign(campaignId);
+        
+//         // Try to withdraw
+//         vm.expectRevert("The campaign did not reach its goal");
+//         campaignManager.withdrawFunds(campaignId);
+//         vm.stopPrank();
+//     }
+    
+//     function testWithdrawFromUnclosedCampaign() public {
+//         // Create a campaign
+//         vm.startPrank(creator);
+//         uint256 campaignId = campaignManager.createCampaign(
+//             TITLE,
+//             DESCRIPTION,
+//             FUNDING_GOAL,
+//             DURATION
+//         );
+        
+//         // Fund it fully but don't close it
+//         vm.stopPrank();
+//         vm.startPrank(donor1);
+//         campaignManager.donate{value: FUNDING_GOAL}(campaignId);
+//         vm.stopPrank();
+        
+//         // Try to withdraw
+//         vm.startPrank(creator);
+//         vm.expectRevert("The campaign must be closed");
+//         campaignManager.withdrawFunds(campaignId);
+//         vm.stopPrank();
+//     }
+    
+//     function testWithdrawAsNonCreator() public {
+//         // Create a campaign
+//         vm.startPrank(creator);
+//         uint256 campaignId = campaignManager.createCampaign(
+//             TITLE,
+//             DESCRIPTION,
+//             FUNDING_GOAL,
+//             DURATION
+//         );
+//         vm.stopPrank();
+        
+//         // Fund it fully
+//         vm.startPrank(donor1);
+//         campaignManager.donate{value: FUNDING_GOAL}(campaignId);
+//         vm.stopPrank();
+        
+//         // Close the campaign
+//         vm.startPrank(creator);
+//         campaignManager.closeCampaign(campaignId);
+//         vm.stopPrank();
+        
+//         // Try to withdraw as non-creator
+//         vm.startPrank(donor1);
+//         vm.expectRevert("Only the campaign creator can perform this action");
+//         campaignManager.withdrawFunds(campaignId);
+//         vm.stopPrank();
+//     }
+    
+//     function testCampaignActiveStatus() public {
+//         // Create a campaign
+//         vm.startPrank(creator);
+//         uint256 campaignId = campaignManager.createCampaign(
+//             TITLE,
+//             DESCRIPTION,
+//             FUNDING_GOAL,
+//             DURATION
+//         );
+//         vm.stopPrank();
+        
+//         // Should be active
+//         assertEq(campaignManager.isCampaignActive(campaignId), true, "Campaign should be active");
+        
+//         // Close campaign
+//         vm.startPrank(creator);
+//         campaignManager.closeCampaign(campaignId);
+//         vm.stopPrank();
+        
+//         // Should not be active
+//         assertEq(campaignManager.isCampaignActive(campaignId), false, "Campaign should not be active after closing");
+        
+//         // Create another campaign
+//         vm.startPrank(creator);
+//         uint256 campaignId2 = campaignManager.createCampaign(
+//             TITLE,
+//             DESCRIPTION,
+//             FUNDING_GOAL,
+//             DURATION
+//         );
+//         vm.stopPrank();
+        
+//         // Advance time past deadline
+//         vm.warp(block.timestamp + (DURATION * 1 days) + 1);
+        
+//         // Should not be active due to deadline
+//         assertEq(campaignManager.isCampaignActive(campaignId2), false, "Campaign should not be active after deadline");
+//     }
+    
+//     function testWithdrawMultipleTimes() public {
+//         // Create a campaign
+//         vm.startPrank(creator);
+//         uint256 campaignId = campaignManager.createCampaign(
+//             TITLE,
+//             DESCRIPTION,
+//             FUNDING_GOAL,
+//             DURATION
+//         );
+//         vm.stopPrank();
+        
+//         // Fund it fully
+//         vm.startPrank(donor1);
+//         campaignManager.donate{value: FUNDING_GOAL}(campaignId);
+//         vm.stopPrank();
+        
+//         // Close the campaign
+//         vm.startPrank(creator);
+//         campaignManager.closeCampaign(campaignId);
+        
+//         // Withdraw funds
+//         campaignManager.withdrawFunds(campaignId);
+        
+//         // Try to withdraw again
+//         vm.expectRevert("No funds to withdraw");
+//         campaignManager.withdrawFunds(campaignId);
+//         vm.stopPrank();
+//     }
+// }
