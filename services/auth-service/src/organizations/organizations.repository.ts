@@ -42,7 +42,7 @@ export class OrganizationsRepository {
       where: { id },
       data: {
         encrypted_wallet_address: walletAddress,
-        wallet_address: null, // Clear plaintext field
+        wallet_address: '', // Clear plaintext field
       },
     });
   }

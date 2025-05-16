@@ -8,15 +8,8 @@ import { config } from './config';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  
-  // HTTPS setup
-  const httpsOptions = {
-    key: fs.readFileSync(config.tls.keyPath),
-    cert: fs.readFileSync(config.tls.certPath),
-  };
 
   const app = await NestFactory.create(AppModule, { 
-    httpsOptions,
     logger: ['error', 'warn', 'log']
   });
 
@@ -44,7 +37,7 @@ async function bootstrap() {
 
   // CORS configuration for API gateway
   app.enableCors({
-    origin: config.cors.allowedOrigins,
+    origin: 'http://localhost:3000',
     methods: config.cors.allowedMethods,
     credentials: config.cors.allowCredentials
   });

@@ -1,16 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PinataService } from './ipfs/pinata.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AppService {
-  getHello(): string {
-    return 'Hello World!';
-  }
   constructor(
     private prisma: PrismaService,
     private pinataService: PinataService
   ) {}
+
+   async auth(email: string, password: string) {
+    if (email === 'admin@fundwise.org' && password === 'password') {
+        return { token: 'some-jwt-token', user: { email } };
+      } else {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+    }
 
   async uploadLegalDocuments(orgId: string, documents: Array<Buffer>) {
     // Create a single JSON with metadata

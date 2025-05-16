@@ -1,12 +1,25 @@
 import { NestFactory } from '@nestjs/core';
-import { AuthModule } from './auth.module';
+import { AppModule } from './app.module';
+import { config } from './config'
+import { Logger } from '@nestjs/common';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AuthModule);
-  app.enableCors({
-    origin: 'http://localhost:443', 
-    credentials: true,
+  const logger = new Logger('Bootstrap');
+
+  const app = await NestFactory.create(AppModule, { 
+    logger: ['error', 'warn', 'log']
   });
-  await app.listen(process.env.PORT ?? 3001);
+
+  app.use(require('body-parser').urlencoded({ extended: true }));
+
+  app.enableCors({
+    origin: ['http://localhost:3000', 'http://localhost:3001'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  });
+  
+  await app.listen(config.port ?? 3002);
+  logger.log(`Auth service running on port ${config.port ?? 3002}`);
 }
 bootstrap();
