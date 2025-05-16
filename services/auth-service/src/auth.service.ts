@@ -10,7 +10,7 @@ export class AuthService {
       const user = { email };
 
       // Example: Send login event to other service
-      await this.brokerService.publish('auth.login', { user });
+      await this.brokerService.publish('auth', { user });
 
       return { token: 'some-jwt-token', user };
     } else {
