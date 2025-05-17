@@ -10,27 +10,27 @@ datasource db {
 }
 
 model donor_transactions {
-  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  donor_id      String    @db.Uuid
-  transaction_id String    @unique @db.Uuid
-  created_at    DateTime  @default(now()) @db.Timestamptz(6)
-  transaction_details transaction_details?
-  donor         profiles  @relation(fields: [donor_id], references: [id])
+  id             String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  donor_id       String              @db.Uuid
+  transaction_id String              @unique @db.Uuid
+  created_at     DateTime            @default(now()) @db.Timestamptz(6)
+  details        transaction_details? @relation("DonorTransactionToDetails", fields: [transaction_id], references: [id])
+  donor          profiles            @relation(fields: [donor_id], references: [id])
 
   @@schema("donation_service")
 }
 
 model transaction_details {
-  id               String    @id @db.Uuid
-  amount           Decimal   @db.Decimal
+  id               String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  amount           Decimal           @db.Decimal
   encrypted_amount String?
-  campaign_id      String    @db.Uuid
-  transaction_hash String    @unique
-  status           String    @default("pending")
+  campaign_id      String            @db.Uuid
+  transaction_hash String            @unique
+  status           String            @default("pending")
   message          String?
-  created_at       DateTime  @default(now()) @db.Timestamptz(6)
+  created_at       DateTime          @default(now()) @db.Timestamptz(6)
   payment_method   String
-  donor_transaction donor_transactions @relation(fields: [id], references: [transaction_id])
+  transaction      donor_transactions? @relation("DonorTransactionToDetails")
 
   @@schema("donation_service")
 }
@@ -44,7 +44,6 @@ model public_donation_stats {
   @@schema("donation_service")
 }
 
-// Reference to profiles from auth_service schema to establish relation
 model profiles {
   id                    String          @id @db.Uuid
   email                 String          @unique

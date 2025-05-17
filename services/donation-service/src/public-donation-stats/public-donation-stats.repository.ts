@@ -1,6 +1,37 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
+
+// Define custom types to replace Prisma generated types
+type PublicDonationStatsWhereInput = {
+  id?: string;
+  campaign_id?: string;
+  amount?: number | string | Decimal | { 
+    gt?: number | string | Decimal;
+    gte?: number | string | Decimal;
+    lt?: number | string | Decimal;
+    lte?: number | string | Decimal;
+  };
+  created_at?: Date | { 
+    gt?: Date;
+    gte?: Date;
+    lt?: Date;
+    lte?: Date;
+  };
+};
+
+type PublicDonationStatsOrderByInput = {
+  id?: 'asc' | 'desc';
+  campaign_id?: 'asc' | 'desc';
+  amount?: 'asc' | 'desc';
+  created_at?: 'asc' | 'desc';
+};
+
+type PublicDonationStatsCreateInput = {
+  campaign_id: string;
+  amount: number | string | Decimal;
+};
 
 @Injectable()
 export class PublicDonationStatsRepository {
@@ -10,8 +41,8 @@ export class PublicDonationStatsRepository {
   async findAll(params: {
     skip?: number;
     take?: number;
-    where?: Prisma.public_donation_statsWhereInput;
-    orderBy?: Prisma.public_donation_statsOrderByWithRelationInput;
+    where?: PublicDonationStatsWhereInput;
+    orderBy?: PublicDonationStatsOrderByInput;
   }) {
     const { skip, take, where, orderBy } = params;
     return this.prisma.public_donation_stats.findMany({
@@ -46,7 +77,7 @@ export class PublicDonationStatsRepository {
     };
   }
 
-  async create(data: Prisma.public_donation_statsCreateInput) {
+  async create(data: PublicDonationStatsCreateInput) {
     return this.prisma.public_donation_stats.create({
       data,
     });
