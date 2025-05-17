@@ -7,6 +7,7 @@
 const amqp = require('amqplib');
 const { rabbitmq: config } = require('../../config');
 const logger = require('../../utils/logger');
+const crypto = require('crypto');
 
 class DonationProducer {
   constructor() {
@@ -22,9 +23,17 @@ class DonationProducer {
       // Set up exchange
       await this.channel.assertExchange(
         config.exchanges.donation.name,
-        config.exchanges.donation.type,
-        config.exchanges.donation.options
+        'direct',
+        { durable: true }
       );
+
+      // Declare queues
+      await this.channel.assertQueue('donation.created', { durable: true });
+      await this.channel.assertQueue('donation.processed', { durable: true });
+
+      // Bind queues to exchange
+      await this.channel.bindQueue('donation.created', config.exchanges.donation.name, 'donation.created');
+      await this.channel.bindQueue('donation.processed', config.exchanges.donation.name, 'donation.processed');
 
       logger.info('Donation producer connected to RabbitMQ');
     } catch (error) {
@@ -39,19 +48,33 @@ class DonationProducer {
         await this.connect();
       }
 
-      const messageBuffer = Buffer.from(JSON.stringify(message));
+      // Ensure message has a unique ID if not provided
+      if (!message.id) {
+        message.id = message.transaction_id || crypto.randomUUID();
+      }
+
+      const messageBuffer = Buffer.from(JSON.stringify({
+        id: message.id,
+        timestamp: new Date().toISOString(),
+        data: message
+      }));
       
+      // Publish to exchange with routing key
       await this.channel.publish(
         config.exchanges.donation.name,
         routingKey,
         messageBuffer,
         {
           persistent: true,
-          contentType: 'application/json'
+          contentType: 'application/json',
+          messageId: message.id,
+          headers: {
+            'x-deduplication-id': message.id
+          }
         }
       );
 
-      logger.info(`Published message to ${routingKey}`);
+      logger.info(`Published message to ${routingKey} with ID: ${message.id}`);
     } catch (error) {
       logger.error(`Failed to publish message to ${routingKey}: ${error.message}`);
       throw error;
@@ -60,7 +83,7 @@ class DonationProducer {
 
   async publishNewDonation(donation) {
     await this.publishMessage(
-      config.queues.donation.new,
+      'donation.created',
       {
         ...donation,
         timestamp: new Date().toISOString()
@@ -70,7 +93,7 @@ class DonationProducer {
 
   async publishDonationStatus(status) {
     await this.publishMessage(
-      config.queues.donation.status,
+      'donation.processed',
       {
         ...status,
         timestamp: new Date().toISOString()
@@ -80,7 +103,7 @@ class DonationProducer {
 
   async publishRefundRequest(refund) {
     await this.publishMessage(
-      config.queues.donation.refund,
+      'donation.refund',
       {
         ...refund,
         timestamp: new Date().toISOString()

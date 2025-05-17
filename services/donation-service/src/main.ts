@@ -19,9 +19,13 @@ async function bootstrap() {
     transport: Transport.RMQ,
     options: {
       urls: ['amqp://localhost:5672'],
-      queue: 'donation_queue',
+      queue: 'donation.created',
       queueOptions: {
         durable: true,
+        arguments: {
+          'x-message-deduplication': true,
+          'x-message-ttl': 86400000 // 24 hours in milliseconds
+        }
       },
       noAck: false,
       prefetchCount: 1,
@@ -30,11 +34,17 @@ async function bootstrap() {
         heartbeatIntervalInSeconds: 60,
         reconnectTimeInSeconds: 5,
       },
+      exchange: 'donation_exchange',
+      routingKey: 'donation.created',
       // Add custom serializer and deserializer
       serializer: {
         serialize: (value: any) => {
           // Ensure the value is an object with pattern and data properties
-          const message = { pattern: value.pattern, data: value.data };
+          const message = { 
+            pattern: value.pattern, 
+            data: value.data,
+            id: value.id || crypto.randomUUID()
+          };
           return Buffer.from(JSON.stringify(message));
         },
       },
@@ -45,56 +55,30 @@ async function bootstrap() {
             if (typeof value === 'object' && value !== null) {
               if (Buffer.isBuffer(value)) {
                 const str = value.toString();
-                console.log('Raw message received in deserializer (Buffer):', str);
-                // Check if the string is actually [object Object]
-                if (str === '[object Object]') {
-                  console.warn('Received literal string "[object Object]", likely serialization issue upstream');
-                  return { pattern: undefined, data: {} };
-                }
                 try {
                   const parsedMessage = JSON.parse(str);
-                  if (parsedMessage && typeof parsedMessage === 'object' && 'pattern' in parsedMessage && 'data' in parsedMessage) {
-                    return parsedMessage;
+                  if (parsedMessage && typeof parsedMessage === 'object') {
+                    return {
+                      pattern: parsedMessage.pattern,
+                      data: parsedMessage.data,
+                      id: parsedMessage.id
+                    };
                   }
-                  console.warn('Received message with unexpected structure:', parsedMessage);
                   return { pattern: undefined, data: parsedMessage };
                 } catch (parseError) {
                   console.error('JSON parse error:', parseError.message);
-                  console.error('String content:', str);
-                  // Return a safe default value
                   return { pattern: undefined, data: { rawContent: str } };
                 }
-              } else {
-                // If it's already an object but not a Buffer
-                console.log('Raw message received in deserializer (Object):', typeof value);
-                // Check if it has the expected NestJS message structure
-                if ('pattern' in value && 'data' in value) {
-                  return value;
-                }
-                // Otherwise wrap it in the expected structure
-                return { pattern: undefined, data: value };
               }
-            } else if (typeof value === 'string') {
-              // If it's a string, try to parse it
-              console.log('Raw message received in deserializer (String):', value);
-              try {
-                const parsedMessage = JSON.parse(value);
-                if (parsedMessage && typeof parsedMessage === 'object' && 'pattern' in parsedMessage && 'data' in parsedMessage) {
-                  return parsedMessage;
-                }
-                return { pattern: undefined, data: parsedMessage };
-              } catch (parseError) {
-                return { pattern: undefined, data: { rawContent: value } };
-              }
+              return { 
+                pattern: value.pattern, 
+                data: value.data,
+                id: value.id
+              };
             }
-            
-            // For any other type, wrap it in the expected structure
             return { pattern: undefined, data: value };
           } catch (error) {
             console.error('Deserialization error:', error);
-            console.error('Value type:', typeof value);
-            console.error('Value content:', value instanceof Buffer ? value.toString() : String(value));
-            // Return a safe default with detailed error info
             return { 
               pattern: undefined, 
               data: { 

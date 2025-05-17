@@ -8,11 +8,13 @@ const Consumer = require('../../lib/consumer');
 const { rabbitmq: config } = require('../../config');
 const logger = require('../../utils/logger');
 const donationService = require('../donation-service');
+const amqp = require('amqplib');
 
 class DonationConsumer extends Consumer {
   constructor() {
     super();
     this.initialized = false;
+    this.processedMessages = new Set();
   }
 
   /**
@@ -88,6 +90,9 @@ class DonationConsumer extends Consumer {
     }
 
     try {
+      // Connect to RabbitMQ
+      await this.connect();
+
       // Set up consumer for new donations
       await this.consumeNewDonation();
       
@@ -105,30 +110,78 @@ class DonationConsumer extends Consumer {
     }
   }
 
+  async connect() {
+    try {
+      this.connection = await amqp.connect(config.connection);
+      this.channel = await this.connection.createChannel();
+      
+      // Set up exchange
+      await this.channel.assertExchange(
+        config.exchanges.donation.name,
+        'direct',
+        { durable: true }
+      );
+
+      // Declare queues
+      await this.channel.assertQueue('donation.new', { durable: true });
+      await this.channel.assertQueue('donation.status', { durable: true });
+      await this.channel.assertQueue('donation.refund', { durable: true });
+
+      // Bind queues to exchange
+      await this.channel.bindQueue('donation.new', config.exchanges.donation.name, 'donation.new');
+      await this.channel.bindQueue('donation.status', config.exchanges.donation.name, 'donation.status');
+      await this.channel.bindQueue('donation.refund', config.exchanges.donation.name, 'donation.refund');
+
+      logger.info('Donation consumer connected to RabbitMQ');
+    } catch (error) {
+      logger.error(`Failed to connect to RabbitMQ: ${error.message}`);
+      throw error;
+    }
+  }
+
   async consumeNewDonation() {
-    const queue = config.queues.donation.new;
+    const queue = 'donation.new';
     
-    await this.consume(queue, async (message) => {
+    await this.channel.consume(queue, async (msg) => {
+      if (msg === null) return;
+
       try {
-        logger.info(`Processing new donation for campaign ID: ${message.campaignId}`);
+        const message = JSON.parse(msg.content.toString());
+        const messageData = message.data || message;
+        const messageId = message.id || msg.properties.messageId;
+
+        // Check if we've already processed this message
+        if (await this.isMessageProcessed(messageId)) {
+          logger.info(`Skipping already processed message: ${messageId}`);
+          this.channel.ack(msg);
+          return;
+        }
+
+        logger.info(`Processing new donation for campaign ID: ${messageData.campaignId}`);
         
         // Process the donation
         const donation = await donationService.processDonation({
-          id: message.id,
-          campaignId: message.campaignId,
-          amount: message.amount,
-          currency: message.currency,
-          donorId: message.donorId,
-          paymentMethod: message.paymentMethod,
-          paymentDetails: message.paymentDetails,
-          metadata: message.metadata
+          id: messageId,
+          campaignId: messageData.campaignId,
+          amount: messageData.amount,
+          currency: messageData.currency,
+          donorId: messageData.donorId,
+          paymentMethod: messageData.paymentMethod,
+          paymentDetails: messageData.paymentDetails,
+          metadata: messageData.metadata
         });
+
+        // Mark message as processed
+        await this.markMessageAsProcessed(messageId);
+
+        // Acknowledge the message
+        this.channel.ack(msg);
 
         // Notify about successful donation
         const notificationProducer = require('../notification/producer');
         await notificationProducer.publishEmailNotification({
           type: 'email',
-          recipient: message.donorId,
+          recipient: messageData.donorId,
           subject: 'Thank you for your donation!',
           template: 'donation_receipt',
           data: {
@@ -142,7 +195,8 @@ class DonationConsumer extends Consumer {
         logger.info(`Processed new donation ID: ${donation.id}`);
       } catch (error) {
         logger.error(`Error processing new donation: ${error.message}`);
-        throw error;
+        // Reject the message and requeue it
+        this.channel.nack(msg, false, true);
       }
     });
   }
@@ -220,6 +274,23 @@ class DonationConsumer extends Consumer {
         throw error;
       }
     });
+  }
+
+  // Add message deduplication methods
+  async isMessageProcessed(messageId) {
+    // Implement your preferred deduplication storage (Redis, database, etc.)
+    // For now, we'll use a simple in-memory cache
+    return this.processedMessages.has(messageId);
+  }
+
+  async markMessageAsProcessed(messageId) {
+    // Store the processed message ID
+    this.processedMessages.add(messageId);
+    
+    // Optional: Implement cleanup of old message IDs
+    setTimeout(() => {
+      this.processedMessages.delete(messageId);
+    }, 24 * 60 * 60 * 1000); // Clean up after 24 hours
   }
 }
 
