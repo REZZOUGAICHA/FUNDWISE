@@ -43,29 +43,32 @@ export class DonorTransactionsRepository {
       status?: string;
     }
   }) {
-    return this.prisma.donor_transactions.create({
-      data: {
-        donor: {
-          connect: {
-            id: data.donor_id
-          }
-        },
-        details: {
-          create: {
-            id: data.transaction_id,
-            amount: data.details.amount,
-            campaign_id: data.details.campaign_id,
-            transaction_hash: data.details.transaction_hash,
-            payment_method: data.details.payment_method,
-            message: data.details.message,
-            encrypted_amount: data.details.encrypted_amount,
-            status: data.details.status || 'pending',
-          }
+    // Create both records in a transaction
+    return this.prisma.$transaction(async (prisma) => {
+      // First create the transaction details
+      const transactionDetails = await prisma.transaction_details.create({
+        data: {
+          id: data.transaction_id, // Use the same ID to link the records
+          amount: data.details.amount,
+          campaign_id: data.details.campaign_id,
+          transaction_hash: data.details.transaction_hash,
+          payment_method: data.details.payment_method,
+          message: data.details.message,
+          encrypted_amount: data.details.encrypted_amount,
+          status: data.details.status || 'pending',
         }
-      },
-      include: {
-        details: true
-      }
+      });
+
+      // Then create the donor transaction
+      return prisma.donor_transactions.create({
+        data: {
+          donor_id: data.donor_id,
+          transaction_id: data.transaction_id,
+        },
+        include: {
+          details: true
+        }
+      });
     });
   }
 
