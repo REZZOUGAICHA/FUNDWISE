@@ -10,7 +10,10 @@ import { JwtModule } from '@nestjs/jwt';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     HttpModule,
-    JwtModule
+    JwtModule.register({
+        secret: process.env.JWT_SECRET,
+        signOptions: { expiresIn: '1h' }, 
+}),
   ],
   controllers: [HealthController],
   providers: [

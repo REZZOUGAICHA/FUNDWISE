@@ -14,6 +14,7 @@ interface AccessControlRequest {
 export class AccessControlService {
   async validateRequest(data: AccessControlRequest): Promise<boolean> {
     const { method, path, user } = data;
+    console.log()
 
     //only "auditor" can access verification routes
     if (path.startsWith('verification')) {

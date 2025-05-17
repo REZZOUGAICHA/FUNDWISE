@@ -1,21 +1,38 @@
 "use client";
 
-import { SetStateAction, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { 
   Shield, CheckCircle, AlertCircle, ChevronRight, 
   User, Building, Clock, Eye, 
   FileText, Download, Check, X
 } from 'lucide-react';
+import axios from 'axios';
+import { useRouter } from 'next/navigation';
+
+// API client with JWT authentication
+const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api',
+  withCredentials: true,
+});
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
 // Status badge component
-type StatusKey = 'pending' | 'reviewing' | 'approved' | 'rejected' | 'document review';
+type StatusKey = 'pending' | 'reviewing' | 'approved' | 'refused' | 'active' | 'document review';
 
 const StatusBadge = ({ status }: { status: string }) => {
   const statusStyles: Record<StatusKey, string> = {
     pending: "bg-yellow-500/20 text-yellow-500 border-yellow-500/30",
     reviewing: "bg-blue-500/20 text-blue-500 border-blue-500/30",
     approved: "bg-emerald-500/20 text-emerald-500 border-emerald-500/30",
-    rejected: "bg-red-500/20 text-red-500 border-red-500/30",
+    refused: "bg-red-500/20 text-red-500 border-red-500/30",
+    active: "bg-emerald-500/20 text-emerald-500 border-emerald-500/30",
     "document review": "bg-orange-500/20 text-orange-500 border-orange-500/30"
   };
   
@@ -23,8 +40,8 @@ const StatusBadge = ({ status }: { status: string }) => {
   
   return (
     <div className={`px-3 py-1 rounded-full flex items-center text-xs font-medium ${(statusStyles[normalizedStatus] ?? statusStyles.pending)}`}>
-      {normalizedStatus === 'approved' && <Check className="h-3 w-3 mr-1" />}
-      {normalizedStatus === 'rejected' && <X className="h-3 w-3 mr-1" />}
+      {(normalizedStatus === 'approved' || normalizedStatus === 'active') && <Check className="h-3 w-3 mr-1" />}
+      {normalizedStatus === 'refused' && <X className="h-3 w-3 mr-1" />}
       {normalizedStatus === 'pending' && <Clock className="h-3 w-3 mr-1" />}
       {(normalizedStatus === 'reviewing' || normalizedStatus === 'document review') && <Eye className="h-3 w-3 mr-1" />}
       {status}
@@ -32,64 +49,191 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
-type NgoItem = { id: number; name: string; submissionDate: string; status: string };
-type CampaignItem = { id: number; name: string; organization: string; submissionDate: string };
-type FundUsageItem = { id: number; campaign: string; organization: string; amount: number };
+type OrganizationItem = {
+  id: string;
+  name: string;
+  created_at?: string;
+  verification_status: string;
+  [key: string]: any;
+};
 
-type ReviewItem = NgoItem | CampaignItem | FundUsageItem | null;
+type CampaignItem = {
+  id: string;
+  title: string;
+  organization_id: string;
+  organization_name?: string;
+  created_at?: string;
+  status: string;
+  [key: string]: any;
+};
+
+type ProofItem = {
+  id: string;
+  campaign_id: string;
+  campaign_name?: string;
+  organization_name?: string;
+  amount?: number;
+  status: string;
+  created_at?: string;
+  [key: string]: any;
+};
+
+type ReviewItem = OrganizationItem | CampaignItem | ProofItem | null;
 
 export default function AdminVerificationPortal() {
   const [activeTab, setActiveTab] = useState('ngo');
   const [selectedItem, setSelectedItem] = useState<ReviewItem>(null);
   const [reviewComments, setReviewComments] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [token, setToken] = useState('');
   
-  // Mock data for NGOs
-  const ngos: NgoItem[] = [
-    { id: 1, name: 'Global Relief Initiative', submissionDate: '2025-05-01', status: 'Document Review' },
-    { id: 2, name: 'Community Health Alliance', submissionDate: '2025-05-03', status: 'Pending' }
-  ];
-  
-  // Mock data for campaigns
-  const campaigns: CampaignItem[] = [
-    { id: 1, name: 'Education for All', organization: 'Global Relief Initiative', submissionDate: '2025-05-10' },
-    { id: 2, name: 'Medical Outreach Program', organization: 'Community Health Alliance', submissionDate: '2025-05-12' }
-  ];
-  
-  // Mock data for fund usage
-  const fundUsage: FundUsageItem[] = [
-    { id: 1, campaign: 'Clean Water Initiative', organization: 'Global Relief Initiative', amount: 2.5 },
-    { id: 2, campaign: 'Medical Supplies Drive', organization: 'Global Relief Initiative', amount: 1.2 }
-  ];
+  // State for data
+  const [organizations, setOrganizations] = useState<OrganizationItem[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
+  const [proofs, setProofs] = useState<ProofItem[]>([]);
 
-  const handleReview = (item: NgoItem | CampaignItem | FundUsageItem) => {
+    const router = useRouter();
+  
+  // Authentication check on component mount
+  useEffect(() => {
+    const storedToken = localStorage.getItem('token');
+    if (storedToken) {
+      setToken(storedToken);
+      setIsAuthenticated(true);
+    }
+  }, []);
+  
+  // Fetch data when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchAllPendingItems();
+    }
+  }, [isAuthenticated]);
+
+  
+  // Fetch all pending items
+  const fetchAllPendingItems = async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get('/verification/pending');
+      console.log(response);
+      
+      if (response.data) {
+        // Process organizations
+        const orgData = response.data.ngos || [];
+        setOrganizations(orgData);
+        
+        // Process campaigns
+        const campaignData = response.data.campaigns || [];
+        // Add organization names to campaigns if possible
+        const enhancedCampaigns = campaignData.map((campaign: CampaignItem) => {
+          const org = orgData.find((o: OrganizationItem) => o.id === campaign.organization_id);
+          return {
+            ...campaign,
+            organization_name: org ? org.name : 'Unknown Organization'
+          };
+        });
+        setCampaigns(enhancedCampaigns);
+        
+        // Process proofs
+        const proofData = response.data.proofs || [];
+        // Add campaign and organization names to proofs if possible
+        const enhancedProofs = proofData.map((proof: ProofItem) => {
+          const campaign = campaignData.find((c: CampaignItem) => c.id === proof.campaign_id);
+          const orgId = campaign ? campaign.organization_id : null;
+          const org = orgId ? orgData.find((o: OrganizationItem) => o.id === orgId) : null;
+          
+          return {
+            ...proof,
+            campaign_name: campaign ? campaign.title : 'Unknown Campaign',
+            organization_name: org ? org.name : 'Unknown Organization'
+          };
+        });
+        setProofs(enhancedProofs);
+      }
+    } catch (error) {
+      console.error('Error fetching pending items:', error);
+      // Handle authentication errors
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        setIsAuthenticated(false);
+        localStorage.removeItem('token');
+        router.push('/login');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleReview = (item: OrganizationItem | CampaignItem | ProofItem) => {
     setSelectedItem(item);
     setReviewComments('');
   };
 
   const handleApprove = async () => {
+    if (!selectedItem) return;
+    
     setIsLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setSelectedItem(null);
-    setIsLoading(false);
+    try {
+      let endpoint;
+      
+      if ('verification_status' in selectedItem) {
+        // Organization
+        endpoint = `/verification/approve/organization?id=${selectedItem.id}`;
+      } else if ('campaign_id' in selectedItem) {
+        // Proof
+        endpoint = `/verification/approve/proof?id=${selectedItem.id}`;
+      } else {
+        // Campaign
+        endpoint = `/verification/approve/campaign?id=${selectedItem.id}`;
+      }
+      
+      await api.patch(endpoint, { comments: reviewComments });
+      
+      // Refresh data
+      fetchAllPendingItems();
+      setSelectedItem(null);
+      
+    } catch (error) {
+      console.error('Error approving item:', error);
+      // Handle errors (could show toast notification in a real app)
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleReject = async () => {
+    if (!selectedItem) return;
+    
     setIsLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setSelectedItem(null);
-    setIsLoading(false);
+    try {
+      let endpoint;
+      
+      if ('verification_status' in selectedItem) {
+        // Organization
+        endpoint = `/verification/reject/organization?id=${selectedItem.id}`;
+      } else if ('campaign_id' in selectedItem) {
+        // Proof
+        endpoint = `/verification/reject/proof?id=${selectedItem.id}`;
+      } else {
+        // Campaign
+        endpoint = `/verification/reject/campaign?id=${selectedItem.id}`;
+      }
+      
+      await api.patch(endpoint, { comments: reviewComments });
+      
+      // Refresh data
+      fetchAllPendingItems();
+      setSelectedItem(null);
+      
+    } catch (error) {
+      console.error('Error rejecting item:', error);
+      // Handle errors
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleRequestMoreInfo = async () => {
-    setIsLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setSelectedItem(null);
-    setIsLoading(false);
-  };
 
   return (
     <div className="bg-zinc-900/80 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden border border-zinc-800 mt-20">
@@ -135,104 +279,138 @@ export default function AdminVerificationPortal() {
           </button>
         </div>
         
+        {isLoading && !selectedItem && (
+          <div className="flex items-center justify-center py-12">
+            <div className="flex flex-col items-center">
+              <div className="h-8 w-8 border-4 border-t-emerald-500 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin mb-3"></div>
+              <p className="text-gray-400">Loading verification data...</p>
+            </div>
+          </div>
+        )}
+        
         {/* NGO Verification Tab */}
-        {activeTab === 'ngo' && !selectedItem && (
+        {activeTab === 'ngo' && !selectedItem && !isLoading && (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-black/30">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Organization</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Submission Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800">
-                {ngos.map(ngo => (
-                  <tr key={ngo.id} className="hover:bg-zinc-800/30 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{ngo.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{ngo.submissionDate}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <StatusBadge status={ngo.status} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button 
-                        onClick={() => handleReview(ngo)}
-                        className="px-3 py-1 bg-emerald-600 text-black text-sm rounded hover:bg-emerald-500 transition-colors"
-                      >
-                        Review
-                      </button>
-                    </td>
+            {organizations.length === 0 ? (
+              <div className="text-center py-12">
+                <Building className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400">No pending organizations to verify</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-black/30">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Organization</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Submission Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-zinc-800">
+                  {organizations.map(org => (
+                    <tr key={org.id} className="hover:bg-zinc-800/30 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{org.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                        {new Date(org.created_at || Date.now()).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <StatusBadge status={org.verification_status} />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button 
+                          onClick={() => handleReview(org)}
+                          className="px-3 py-1 bg-emerald-600 text-white text-sm rounded hover:bg-emerald-500 transition-colors"
+                        >
+                          Review
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
         
         {/* Campaign Verification Tab */}
-        {activeTab === 'campaigns' && !selectedItem && (
+        {activeTab === 'campaigns' && !selectedItem && !isLoading && (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-black/30">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Campaign</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Organization</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Submission Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800">
-                {campaigns.map(campaign => (
-                  <tr key={campaign.id} className="hover:bg-zinc-800/30 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{campaign.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{campaign.organization}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{campaign.submissionDate}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button 
-                        onClick={() => handleReview(campaign)}
-                        className="px-3 py-1 bg-emerald-600 text-black text-sm rounded hover:bg-emerald-500 transition-colors"
-                      >
-                        Review
-                      </button>
-                    </td>
+            {campaigns.length === 0 ? (
+              <div className="text-center py-12">
+                <FileText className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400">No pending campaigns to verify</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-black/30">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Campaign</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Organization</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Submission Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-zinc-800">
+                  {campaigns.map(campaign => (
+                    <tr key={campaign.id} className="hover:bg-zinc-800/30 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{campaign.title}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{campaign.organization_name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                        {new Date(campaign.created_at || Date.now()).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button 
+                          onClick={() => handleReview(campaign)}
+                          className="px-3 py-1 bg-emerald-600 text-white text-sm rounded hover:bg-emerald-500 transition-colors"
+                        >
+                          Review
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
         
         {/* Fund Usage Verification Tab */}
-        {activeTab === 'fund-usage' && !selectedItem && (
+        {activeTab === 'fund-usage' && !selectedItem && !isLoading && (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-black/30">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Campaign</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Organization</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Amount (ETH)</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800">
-                {fundUsage.map(fund => (
-                  <tr key={fund.id} className="hover:bg-zinc-800/30 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{fund.campaign}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{fund.organization}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-emerald-500">{fund.amount}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button 
-                        onClick={() => handleReview(fund)}
-                        className="px-3 py-1 bg-emerald-600 text-black text-sm rounded hover:bg-emerald-500 transition-colors"
-                      >
-                        Review
-                      </button>
-                    </td>
+            {proofs.length === 0 ? (
+              <div className="text-center py-12">
+                <Eye className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400">No pending fund usage proofs to verify</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-black/30">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Campaign</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Organization</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Amount (ETH)</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-zinc-800">
+                  {proofs.map(proof => (
+                    <tr key={proof.id} className="hover:bg-zinc-800/30 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{proof.campaign_name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{proof.organization_name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-emerald-500">{proof.amount || 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button 
+                          onClick={() => handleReview(proof)}
+                          className="px-3 py-1 bg-emerald-600 text-white text-sm rounded hover:bg-emerald-500 transition-colors"
+                        >
+                          Review
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
         
@@ -257,8 +435,8 @@ export default function AdminVerificationPortal() {
                     <p className="text-white font-medium">
                       {'name' in selectedItem
                         ? selectedItem.name
-                        : 'campaign' in selectedItem
-                        ? selectedItem.campaign
+                        : 'organization_name' in selectedItem
+                        ? selectedItem.organization_name
                         : ''}
                     </p>
                   </div>
@@ -274,16 +452,30 @@ export default function AdminVerificationPortal() {
                   <div>
                     <label className="block text-gray-400 text-sm mb-1">Submission Date</label>
                     <p className="text-white font-medium">
-                      {'submissionDate' in selectedItem && selectedItem.submissionDate
-                        ? selectedItem.submissionDate
-                        : '2025-05-15'}
+                      {new Date('created_at' in selectedItem && selectedItem.created_at 
+                        ? selectedItem.created_at 
+                        : Date.now()).toLocaleDateString()}
                     </p>
                   </div>
                   
                   {activeTab === 'fund-usage' && 'amount' in selectedItem && (
                     <div>
                       <label className="block text-gray-400 text-sm mb-1">Amount (ETH)</label>
-                      <p className="text-emerald-500 font-medium">{selectedItem.amount}</p>
+                      <p className="text-emerald-500 font-medium">{selectedItem.amount || 'N/A'}</p>
+                    </div>
+                  )}
+                  
+                  {activeTab === 'campaigns' && 'title' in selectedItem && (
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-1">Campaign Title</label>
+                      <p className="text-white font-medium">{selectedItem.title}</p>
+                    </div>
+                  )}
+                  
+                  {activeTab === 'fund-usage' && 'campaign_name' in selectedItem && (
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-1">Campaign</label>
+                      <p className="text-white font-medium">{selectedItem.campaign_name}</p>
                     </div>
                   )}
                 </div>
@@ -361,20 +553,26 @@ export default function AdminVerificationPortal() {
                 <button
                   onClick={handleApprove}
                   disabled={isLoading}
-                  className="px-4 py-2 bg-emerald-600 text-black rounded-lg font-medium hover:bg-emerald-500 transition-all duration-300 flex items-center"
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-500 transition-all duration-300 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <CheckCircle className="h-5 w-5 mr-2" />
+                  {isLoading ? (
+                    <div className="h-5 w-5 border-2 border-t-white border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin mr-2"></div>
+                  ) : (
+                    <CheckCircle className="h-5 w-5 mr-2" />
+                  )}
                   Approve
                 </button>
-                
-                
                 
                 <button
                   onClick={handleReject}
                   disabled={isLoading}
-                  className="px-4 py-2 bg-zinc-700 text-white rounded-lg font-medium hover:bg-zinc-600 transition-all duration-300 flex items-center"
+                  className="px-4 py-2 bg-zinc-700 text-white rounded-lg font-medium hover:bg-zinc-600 transition-all duration-300 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <X className="h-5 w-5 mr-2" />
+                  {isLoading ? (
+                    <div className="h-5 w-5 border-2 border-t-white border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin mr-2"></div>
+                  ) : (
+                    <X className="h-5 w-5 mr-2" />
+                  )}
                   Reject
                 </button>
               </div>

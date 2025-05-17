@@ -30,4 +30,19 @@ export class VerificationController {
   approveProof(@Query('id') id: string) {
     return this.verificationService.approveProof(id);
   }
+
+   @Patch('reject/organization')
+  rejectOrganization(@Query('id') id: string) {
+    return this.verificationService.rejectOrganization(id);
+  }
+
+  @Patch('reject/campaign')
+  rejectCampaign(@Query('id') id: string) {
+    return this.verificationService.rejectCampaign(id);
+  }
+
+  @Patch('reject/proof')
+  rejectProof(@Query('id') id: string) {
+    return this.verificationService.rejectProof(id);
+  }
 }

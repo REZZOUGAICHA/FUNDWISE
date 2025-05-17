@@ -43,4 +43,25 @@ export class VerificationService {
       proofId
     );
   }
+
+   async rejectOrganization(orgId: string) {
+    return this.prisma.$executeRawUnsafe(
+      `UPDATE auth_service.organizations SET verification_status = 'refused' WHERE id = $1`,
+      orgId
+    );
+  }
+
+  async rejectCampaign(campaignId: string) {
+    return this.prisma.$executeRawUnsafe(
+      `UPDATE campaign_service.campaigns SET status = 'refused' WHERE id = $1`,
+      campaignId
+    );
+  }
+
+  async rejectProof(proofId: string) {
+    return this.prisma.$executeRawUnsafe(
+      `UPDATE campaign_service.proofs SET status = 'refused' WHERE id = $1`,
+      proofId
+    );
+  }
 }
