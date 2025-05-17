@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Wallet, DollarSign, CreditCard, ArrowLeft, ArrowRight, CheckCircle, AlertCircle, Info, Copy, ExternalLink } from 'lucide-react';
+import { loadStripe } from '@stripe/stripe-js';
+import { CardElement, Elements, useStripe, useElements } from '@stripe/react-stripe-js';
 
 interface DonatePageProps {
   params: Promise<{ id: string }>;
@@ -22,6 +24,133 @@ interface Campaign {
     id: string;
     walletAddress: string;
   };
+}
+
+// Initialize Stripe
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+
+const CARD_ELEMENT_OPTIONS = {
+  style: {
+    base: {
+      color: '#ffffff',
+      fontFamily: '"Inter", sans-serif',
+      fontSmoothing: 'antialiased',
+      fontSize: '16px',
+      '::placeholder': {
+        color: '#aab7c4',
+      },
+    },
+    invalid: {
+      color: '#fa755a',
+      iconColor: '#fa755a',
+    },
+  },
+};
+
+function DonationForm({ campaignId }: { campaignId: string }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const router = useRouter();
+  const [amount, setAmount] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!stripe || !elements) {
+      return;
+    }
+
+    setProcessing(true);
+    setError(null);
+
+    try {
+      // Create payment intent
+      const response = await fetch('/api/create-payment-intent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: parseFloat(amount) * 100, // Convert to cents
+          campaignId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Payment failed');
+      }
+
+      // Confirm the payment
+      const { error: stripeError } = await stripe.confirmCardPayment(data.clientSecret, {
+        payment_method: {
+          card: elements.getElement(CardElement)!,
+        },
+      });
+
+      if (stripeError) {
+        throw stripeError;
+      }
+
+      // Redirect to success page
+      router.push(`/campaigns/${campaignId}?success=true`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Payment failed');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div>
+        <label htmlFor="amount" className="block text-sm font-medium text-gray-200 mb-2">
+          Donation Amount (USD)
+        </label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+          <input
+            type="number"
+            id="amount"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="w-full pl-8 pr-4 py-3 bg-black/50 border border-zinc-800 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent"
+            placeholder="0.00"
+            min="1"
+            step="0.01"
+            required
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-200 mb-2">
+          Card Details
+        </label>
+        <div className="p-4 bg-black/50 border border-zinc-800 rounded-lg">
+          <CardElement options={CARD_ELEMENT_OPTIONS} />
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4 flex items-center">
+          <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+          <p className="text-red-500">{error}</p>
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={!stripe || processing}
+        className="w-full px-6 py-3 bg-emerald-600 text-black rounded-lg font-medium hover:bg-emerald-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {processing ? 'Processing...' : 'Donate Now'}
+      </button>
+    </form>
+  );
 }
 
 export default function DonatePage({ params }: DonatePageProps) {
@@ -324,6 +453,18 @@ export default function DonatePage({ params }: DonatePageProps) {
                           </div>
                         </div>
                       </div>
+
+                      {/* Card Form for Credit Card Payment */}
+                      {donationMethod === 'card' && (
+                        <div className="mb-8">
+                          <h3 className="text-white font-medium mb-4">Enter Card Details</h3>
+                          <div className="bg-black/40 rounded-lg p-4 border border-zinc-800">
+                            <Elements stripe={stripePromise}>
+                              <DonationForm campaignId={id} />
+                            </Elements>
+                          </div>
+                        </div>
+                      )}
                       
                       {/* Donation Summary */}
                       <div className="bg-black/40 rounded-lg p-4 border border-zinc-800 mb-8">
@@ -342,23 +483,25 @@ export default function DonatePage({ params }: DonatePageProps) {
                         </div>
                       </div>
                       
-                      <div className="flex space-x-4">
-                        <button
-                          type="button"
-                          onClick={handleBack}
-                          className="px-6 py-3 bg-zinc-800 text-white rounded-lg font-medium hover:bg-zinc-700 transition-all duration-300"
-                        >
-                          Back
-                        </button>
-                        
-                        <button
-                          type="button"
-                          onClick={handleDonate}
-                          className="flex-1 py-3 px-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-black rounded-lg font-medium hover:from-emerald-500 hover:to-emerald-400 transition-all duration-300 shadow-lg flex items-center justify-center"
-                        >
-                          {donationMethod === 'crypto' ? 'Connect Wallet & Donate' : 'Proceed to Payment'}
-                        </button>
-                      </div>
+                      {donationMethod === 'crypto' && (
+                        <div className="flex space-x-4">
+                          <button
+                            type="button"
+                            onClick={handleBack}
+                            className="px-6 py-3 bg-zinc-800 text-white rounded-lg font-medium hover:bg-zinc-700 transition-all duration-300"
+                          >
+                            Back
+                          </button>
+                          
+                          <button
+                            type="button"
+                            onClick={handleDonate}
+                            className="flex-1 py-3 px-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-black rounded-lg font-medium hover:from-emerald-500 hover:to-emerald-400 transition-all duration-300 shadow-lg flex items-center justify-center"
+                          >
+                            Connect Wallet & Donate
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </>
