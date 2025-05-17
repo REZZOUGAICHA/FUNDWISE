@@ -1,17 +1,18 @@
+// src/app.module.ts
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { CampaignModule } from './campaigns/campaigns.module';
 import { PrismaModule } from '../prisma/prisma.module';
-import { IpfsModule } from './ipfs/ipfs.module';
-import { CampaignsModule } from './campaigns/campaigns.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
     PrismaModule,
-    IpfsModule,
-    CampaignsModule
+    CampaignModule,
   ],
   controllers: [AppController],
   providers: [AppService],

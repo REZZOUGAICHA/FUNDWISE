@@ -5,6 +5,9 @@ import { CreateCampaignDto, ProofSubmissionDto } from './types/campaign.types';
 
 @Injectable()
 export class AppService  {
+  getHello(): string {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     private prisma: PrismaService,
     private pinataService: PinataService
