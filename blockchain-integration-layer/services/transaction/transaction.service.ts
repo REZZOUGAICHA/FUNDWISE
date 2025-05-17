@@ -39,9 +39,15 @@ export class TransactionService {
         "function campaignExists(uint256 _campaignId) view returns (bool)",
         "function getNGOCampaigns(address _ngo) view returns (uint256[])",
         // Make sure the event signature exactly matches the contract
+        "function verifyCampaign(uint256 _campaignId)",
+        "function activateCampaign(uint256 _campaignId)",
+        "function isCampaignActive(uint256 _campaignId) view returns (bool)",
         "event CampaignCreated(uint256 indexed campaignId, address indexed ngo, string title, uint256 fundingGoal)"
       ],
       DonationManager: [
+        "function donate(uint256 _campaignId, uint256 _amount) external",
+        "function getCampaignDonationTotal(uint256 _campaignId) view returns (uint256)",
+        "function getDonationAmount(address _donor, uint256 _campaignId) view returns (uint256)",
         "event DonationReceived(uint256 indexed campaignId, address indexed donor, uint256 amount)"
       ],
       FundReleaseManager: [
@@ -51,8 +57,11 @@ export class TransactionService {
         "event ProofSubmitted(uint256 indexed proofId, uint256 indexed campaignId, address indexed submitter, string ipfsHash)"
       ],
       MockToken: [
-        "function approve(address spender, uint256 amount) returns (bool)",
-        "function balanceOf(address account) view returns (uint256)"
+        "function decimals() view returns (uint8)",
+       "function approve(address spender, uint256 amount) returns (bool)",
+        "function balanceOf(address account) view returns (uint256)",
+        "function mint(address to, uint256 amount)",
+        "function burn(address from, uint256 amount)"
       ]
     };
   }

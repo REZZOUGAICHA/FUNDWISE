@@ -99,6 +99,9 @@ describe('Campaign Creation Test', () => {
     
     // Create NGO wallet with some initial balance
     ngoWallet = ethers.Wallet.createRandom().connect(provider);
+    //ngoWallet = new ethers.Wallet("0x5865C8b8882787085E8AEb76773D750e407646C4", provider);
+
+    
     
     // Import the wallet into our service
     walletService.importWallet(ngoWallet.privateKey);
