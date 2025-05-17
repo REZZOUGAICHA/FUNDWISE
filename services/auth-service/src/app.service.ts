@@ -1,21 +1,47 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PinataService } from './ipfs/pinata.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+import { PrismaService } from 'prisma/prisma.service';
 
 @Injectable()
 export class AppService {
   constructor(
     private prisma: PrismaService,
-    private pinataService: PinataService
+    private jwtService: JwtService,
+    private pinataService: PinataService,
   ) {}
 
    async auth(email: string, password: string) {
-    if (email === 'admin@fundwise.org' && password === 'password') {
-        return { token: 'some-jwt-token', user: { email } };
-      } else {
-        throw new UnauthorizedException('Invalid credentials');
-      }
+    
+    const user = await this.prisma.user.findFirst({
+      where: { email },
+    });
+    if (!user?.email || !user?.encrypted_password) {
+        throw new UnauthorizedException('Invalid email or password');
     }
+
+    const passwordValid = await bcrypt.compare(password, user.encrypted_password);
+
+    if (!passwordValid) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    const payload = {
+      sub: user.id,
+      role: user.role,
+    };
+
+    const token = this.jwtService.sign(payload);
+
+    return {
+      token,
+      user: {
+        id: user.id,
+        role: user.role,
+      },
+    };
+  }
 
   async uploadLegalDocuments(orgId: string, documents: Array<Buffer>) {
     // Create a single JSON with metadata

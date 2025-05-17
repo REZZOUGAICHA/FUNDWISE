@@ -4,11 +4,13 @@ import { ProxyMiddleware } from './proxy.middleware';
 import { ProxyService } from './proxy.service';
 import { HealthController } from './health.controller';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     HttpModule,
+    JwtModule
   ],
   controllers: [HealthController],
   providers: [
@@ -29,6 +31,18 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       provide: 'AUTH_SERVICE_URL',
       useFactory: (config: ConfigService) =>
         config.get<string>('AUTH_SERVICE_URL'),
+      inject: [ConfigService],
+    },
+    {
+      provide: 'ACCESS_CONTROL_SERVICE_URL',
+      useFactory: (config: ConfigService) =>
+        config.get<string>('ACCESS_CONTROL_SERVICE_URL'),
+      inject: [ConfigService],
+    },
+    {
+      provide: 'VERIFICATION_SERVICE_URL',
+      useFactory: (config: ConfigService) =>
+        config.get<string>('VERIFICATION_SERVICE_URL'),
       inject: [ConfigService],
     },
   ],

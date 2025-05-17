@@ -1,29 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { NGOTable } from './NGOTable';
+import { CampaignTable } from './CampaignTable';
+import { DocumentReviewPanel } from './DocumentReviewPanel';
+import { FundTable } from './FundTable';
 
-// TypeScript interfaces
 interface NGO {
   id: string;
   name: string;
-  submissionDate: string;
-  status: 'Document Review' | 'Pending' | 'Background Check' | 'Approved';
+  verification_status: string;
 }
 
 interface Campaign {
   id: string;
-  name: string;
-  organization: string;
-  submissionDate: string;
+  title: string;
+  status: string;
 }
 
-interface FundUsage {
+interface Proof {
   id: string;
-  campaign: string;
-  organization: string;
-  amount: number;
+  campaign_id: string;
+  status: string;
 }
 
 interface DocumentReview {
@@ -36,24 +36,44 @@ export default function VerificationPortal() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('pending-ngo');
   const [selectedDocument, setSelectedDocument] = useState<DocumentReview | null>(null);
+  const [selectedType, setSelectedType] = useState<string>('');
+  const [selectedId, setSelectedId] = useState<string>('');
+  const [ngos, setNgos] = useState<NGO[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [proofs, setProofs] = useState<Proof[]>([]);
+  const [error, setError] = useState('');
 
-  const pendingNGOs: NGO[] = [
-    { id: '1', name: 'Global Relief Initiative', submissionDate: '2025-05-01', status: 'Document Review' },
-    { id: '2', name: 'Community Health Alliance', submissionDate: '2025-05-03', status: 'Pending' },
-    { id: '3', name: 'Education First Foundation', submissionDate: '2025-05-10', status: 'Background Check' }
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Unauthorized: No token found');
+        return;
+      }
 
-  const pendingCampaigns: Campaign[] = [
-    { id: '1', name: 'Education for All', organization: 'Global Relief Initiative', submissionDate: '2025-05-10' },
-    { id: '2', name: 'Medical Outreach Program', organization: 'Community Health Alliance', submissionDate: '2025-05-12' },
-    { id: '3', name: 'Clean Water Project', organization: 'Education First Foundation', submissionDate: '2025-05-14' }
-  ];
+      try {
+        const res = await fetch('http://localhost:3001/api/verification/pending', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-  const pendingFundUsage: FundUsage[] = [
-    { id: '1', campaign: 'Clean Water Initiative', organization: 'Global Relief Initiative', amount: 2.5 },
-    { id: '2', campaign: 'Medical Supplies Drive', organization: 'Global Relief Initiative', amount: 1.2 },
-    { id: '3', campaign: 'School Building Program', organization: 'Education First Foundation', amount: 5.0 }
-  ];
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.message || 'Failed to fetch data');
+        }
+
+        const data = await res.json();
+        setNgos(data.ngos);
+        setCampaigns(data.campaigns);
+        setProofs(data.proofs);
+      } catch (err: any) {
+        setError(err.message);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const handleLogout = () => router.push('/login');
 
@@ -61,28 +81,61 @@ export default function VerificationPortal() {
     let document: DocumentReview | null = null;
 
     if (type === 'ngo') {
-      const ngo = pendingNGOs.find(n => n.id === id);
+      const ngo = ngos.find(n => n.id === id);
       if (ngo) {
-        document = { organization: ngo.name, documentType: 'Financial Statements', submissionDate: ngo.submissionDate };
+        document = { organization: ngo.name, documentType: 'Financial Statements', submissionDate: new Date().toISOString().split('T')[0] };
       }
     } else if (type === 'campaign') {
-      const campaign = pendingCampaigns.find(c => c.id === id);
+      const campaign = campaigns.find(c => c.id === id);
       if (campaign) {
-        document = { organization: campaign.organization, documentType: 'Campaign Documentation', submissionDate: campaign.submissionDate };
+        document = { organization: campaign.title, documentType: 'Campaign Documentation', submissionDate: new Date().toISOString().split('T')[0] };
       }
     } else if (type === 'fund') {
-      const fund = pendingFundUsage.find(f => f.id === id);
+      const fund = proofs.find(f => f.id === id);
       if (fund) {
-        document = { organization: fund.organization, documentType: 'Fund Usage Proof', submissionDate: new Date().toISOString().split('T')[0] };
+        document = { organization: fund.campaign_id, documentType: 'Fund Usage Proof', submissionDate: new Date().toISOString().split('T')[0] };
       }
     }
 
+    setSelectedType(type);
+    setSelectedId(id);
     setSelectedDocument(document);
   };
 
-  const handleDocumentResponse = (action: 'approve' | 'request' | 'reject') => {
-    alert(`Document ${action === 'approve' ? 'approved' : action === 'request' ? 'needs more information' : 'rejected'}`);
+  const handleDocumentResponse = async (action: 'approve' | 'request' | 'reject') => {
+    if (action === 'approve' && selectedType && selectedId) {
+      const token = localStorage.getItem('token');
+      const urlMap: Record<string, string> = {
+        ngo: 'organization',
+        campaign: 'campaign',
+        fund: 'proof',
+      };
+
+      try {
+        const res = await fetch(`http://localhost:3001/api/verification/approve/${urlMap[selectedType]}?id=${selectedId}`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.message || 'Approval failed');
+        }
+
+        alert(`${selectedType} approved successfully!`);
+        window.location.reload();
+      } catch (err: any) {
+        alert(`Failed to approve ${selectedType}: ${err.message}`);
+      }
+    } else {
+      alert(`Document ${action === 'request' ? 'needs more information' : 'rejected'}`);
+    }
+
     setSelectedDocument(null);
+    setSelectedType('');
+    setSelectedId('');
   };
 
   return (
@@ -102,6 +155,8 @@ export default function VerificationPortal() {
       <main className="max-w-6xl mx-auto px-6 py-8">
         <h2 className="text-emerald-700 text-2xl font-semibold mb-6 border-b border-emerald-700 pb-2">Verification Portal</h2>
 
+        {error && <div className="text-red-500 mb-4">{error}</div>}
+
         <div className="bg-zinc-900 rounded-lg p-6 border-l-4 border-emerald-700">
           <div className="flex border-b border-zinc-700 mb-6">
             {['pending-ngo', 'pending-campaigns', 'pending-fund-usage'].map(tab => (
@@ -116,15 +171,15 @@ export default function VerificationPortal() {
           </div>
 
           {activeTab === 'pending-ngo' && (
-            <NGOTable data={pendingNGOs} onReview={handleReview} />
+            <NGOTable data={ngos} onReview={handleReview} />
           )}
 
           {activeTab === 'pending-campaigns' && (
-            <CampaignTable data={pendingCampaigns} onReview={handleReview} />
+            <CampaignTable data={campaigns} onReview={handleReview} />
           )}
 
           {activeTab === 'pending-fund-usage' && (
-            <FundTable data={pendingFundUsage} onReview={handleReview} />
+            <FundTable data={proofs} onReview={handleReview} />
           )}
 
           {selectedDocument && (
@@ -132,130 +187,6 @@ export default function VerificationPortal() {
           )}
         </div>
       </main>
-    </div>
-  );
-}
-
-function NGOTable({ data, onReview }: { data: NGO[]; onReview: (type: string, id: string) => void }) {
-  return (
-    <table className="w-full text-left mb-6">
-      <thead>
-        <tr className="text-emerald-700">
-          <th className="px-4 py-3">Organization</th>
-          <th className="px-4 py-3">Submission Date</th>
-          <th className="px-4 py-3">Status</th>
-          <th className="px-4 py-3">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.map(ngo => (
-          <tr key={ngo.id} className="border-t border-zinc-700">
-            <td className="px-4 py-3">{ngo.name}</td>
-            <td className="px-4 py-3">{ngo.submissionDate}</td>
-            <td className="px-4 py-3">
-              <span className={`px-3 py-1 rounded-full text-xs ${ngo.status === 'Approved' ? 'bg-emerald-700 text-white' : 'bg-yellow-400 text-black'}`}>
-                {ngo.status}
-              </span>
-            </td>
-            <td className="px-4 py-3">
-              <button onClick={() => onReview('ngo', ngo.id)} className="bg-emerald-700 text-white px-4 py-2 rounded font-bold">
-                Review
-              </button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function CampaignTable({ data, onReview }: { data: Campaign[]; onReview: (type: string, id: string) => void }) {
-  return (
-    <table className="w-full text-left mb-6">
-      <thead>
-        <tr className="text-emerald-700">
-          <th className="px-4 py-3">Campaign</th>
-          <th className="px-4 py-3">Organization</th>
-          <th className="px-4 py-3">Submission Date</th>
-          <th className="px-4 py-3">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.map(campaign => (
-          <tr key={campaign.id} className="border-t border-zinc-700">
-            <td className="px-4 py-3">{campaign.name}</td>
-            <td className="px-4 py-3">{campaign.organization}</td>
-            <td className="px-4 py-3">{campaign.submissionDate}</td>
-            <td className="px-4 py-3">
-              <button onClick={() => onReview('campaign', campaign.id)} className="bg-emerald-700 text-white px-4 py-2 rounded font-bold">
-                Review
-              </button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function FundTable({ data, onReview }: { data: FundUsage[]; onReview: (type: string, id: string) => void }) {
-  return (
-    <table className="w-full text-left mb-6">
-      <thead>
-        <tr className="text-emerald-700">
-          <th className="px-4 py-3">Campaign</th>
-          <th className="px-4 py-3">Organization</th>
-          <th className="px-4 py-3">Amount (ETH)</th>
-          <th className="px-4 py-3">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.map(fund => (
-          <tr key={fund.id} className="border-t border-zinc-700">
-            <td className="px-4 py-3">{fund.campaign}</td>
-            <td className="px-4 py-3">{fund.organization}</td>
-            <td className="px-4 py-3">{fund.amount}</td>
-            <td className="px-4 py-3">
-              <button onClick={() => onReview('fund', fund.id)} className="bg-emerald-700 text-white px-4 py-2 rounded font-bold">
-                Review
-              </button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function DocumentReviewPanel({ doc, onRespond }: { doc: DocumentReview; onRespond: (action: 'approve' | 'request' | 'reject') => void }) {
-  return (
-    <div className="bg-zinc-900 mt-6 p-6 rounded-lg">
-      <h4 className="text-lg font-semibold mb-4">Document Review</h4>
-      <div className="flex gap-6">
-        <div className="flex-1 space-y-4">
-          <div>
-            <label className="block text-gray-200">Organization: {doc.organization}</label>
-          </div>
-          <div>
-            <label className="block text-gray-200">Document Type: {doc.documentType}</label>
-          </div>
-          <div>
-            <label className="block text-gray-200">Submission Date: {doc.submissionDate}</label>
-          </div>
-        </div>
-        <div className="flex-1 flex items-center justify-center h-48 bg-zinc-800 text-gray-500">
-          [Document Preview]
-        </div>
-      </div>
-      <div className="mt-6">
-        <label className="block text-gray-200 mb-2">Comments</label>
-        <textarea className="w-full p-3 bg-zinc-800 border border-zinc-700 rounded text-white" rows={3}></textarea>
-      </div>
-      <div className="mt-4 flex gap-3">
-        <button onClick={() => onRespond('approve')} className="bg-emerald-700 text-white px-4 py-2 rounded font-bold">Approve</button>
-        <button onClick={() => onRespond('request')} className="bg-gray-600 text-white px-4 py-2 rounded font-bold">Request More Info</button>
-        <button onClick={() => onRespond('reject')} className="bg-gray-600 text-white px-4 py-2 rounded font-bold">Reject</button>
-      </div>
     </div>
   );
 }
