@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "module": "esnext",              // use ES modules instead of CommonJS
+    "target": "esnext",              // better compatibility with ESM and modern JS
+    "moduleResolution": "bundler",   // better for Vite/ESM environment
+    "allowImportingTsExtensions": true, // (optional) helps with extension handling
+    "noEmit": true,                    // required for allowImportingTsExtensions
+    "jsx": "preserve",               // required for Vue or React projects
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true
+  }
+}

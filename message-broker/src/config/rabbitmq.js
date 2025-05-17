@@ -20,6 +20,21 @@ module.exports = {
   
     // Exchange configuration
     exchanges: {
+      heartbeat: {
+  name: 'heartbeat_exchange',
+  type: 'topic',
+  options: { durable: true }
+},
+       auth: {                   // add this block
+    name: 'auth_exchange',
+    type: 'topic',
+    options: { durable: true }
+  },
+        events: {                       // <== Add this
+        name: 'events-exchange',
+        type: 'topic',
+        options: { durable: true }
+    },
       donation: {
         name: 'donation_exchange',
         type: 'topic',
@@ -54,6 +69,21 @@ module.exports = {
   
     // Queue configuration
     queues: {
+      serviceHeartbeat: {
+  name: 'service.heartbeat',
+  options: {
+    durable: true
+  },
+  bindingKey: 'heartbeat.#',
+  exchange: 'heartbeat_exchange'
+},
+       authLoginQueue: 
+      {
+    name: 'auth_login_queue',
+    exchange: 'auth_exchange',
+    bindingKey: 'auth.login',
+    options: { durable: true }
+  },
       // Donation queues
       donationCreated: {
         name: 'donation.created',

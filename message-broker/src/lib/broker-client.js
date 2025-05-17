@@ -30,6 +30,13 @@ class BrokerClient {
             }
 
             this.initialized = true;
+               console.log(`[BrokerClient] Connected to RabbitMQ as ${this.serviceName}`);
+         this.channel = await this.connection.createChannel(); // <== Fix here
+
+      // Now use this.channel
+      await this.channel.assertExchange('auth_exchange', 'topic', { durable: true });
+      await this.channel.assertQueue('auth_login_queue', { durable: true });
+      await this.channel.bindQueue('auth_login_queue', 'auth_exchange', 'auth.login');
             logger.info(`${this.serviceName} broker client connected successfully`);
         } catch (error) {
             logger.error(`Failed to connect ${this.serviceName} broker client: ${error.message}`);
