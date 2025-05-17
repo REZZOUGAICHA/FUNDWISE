@@ -1,0 +1,10 @@
+{
+  "returnValues": {
+    "campaignId": "4",
+    "ngo": "0x52BA1a698C88a6deE5a55fc9d788b649D840dFBF",
+    "title": "Clean Water Project",
+    "fundingGoal": "10000000000"
+  },
+  "transactionHash": "0x2dbdcb95525f0b185388d30ed1251d4283515d4f50f2bcb29119bde61371418c",
+  "blockNumber": 93
+}

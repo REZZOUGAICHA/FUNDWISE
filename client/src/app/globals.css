@@ -1,78 +1,121 @@
 @import "tailwindcss";
 
 :root {
-  --primary: #1a8754;
-  --primary-light: #2daa6e;
-  --primary-dark: #0d6a3c;
-  --secondary: #212529;
-  --light: #f8f9fa;
-  --gray: #6c757d;
-  --white: #ffffff;
-}
-
-html,
-body {
-  padding: 0;
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background-color: #000;
-  color: var(--white);
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-.badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-}
-
-.badge-success {
-  background-color: var(--primary);
-  color: var(--white);
-}
-
-.badge-pending {
-  background-color: #ffc107;
-  color: #000;
-}
-
-.btn {
-  padding: 10px 15px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-.btn-primary {
-  background-color: var(--primary);
-  color: var(--white);
-}
-
-.btn-primary:hover {
-  background-color: var(--primary-light);
-}
-
-.btn-secondary {
-  background-color: var(--gray);
-  color: var(--white);
-}
-
-.btn-secondary:hover {
-  background-color: #5a6268;
+  --background: #ffffff;
+  --foreground: #171717;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
   }
+}
+
+body {
+  background: #000;
+  color: #0a8a0a; 
+}
+
+
+.glow {
+  text-shadow: 0 0 3px #0a8a0a, 0 0 6px #0a8a0a;
+}
+
+
+
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.8s ease-out forwards;
+}
+
+@keyframes pulseSlow {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulseSlow 3s infinite;
+}
+
+
+@keyframes pulse-block {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  50% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+}
+
+@keyframes scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(400%); }
+}
+
+@keyframes float-security {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  25% { transform: translateY(-15px) translateX(5px); }
+  50% { transform: translateY(-5px) translateX(-10px); }
+  75% { transform: translateY(-10px) translateX(15px); }
+}
+
+@keyframes data-packet {
+  0% { transform: translate(0, 0) scale(1); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate(var(--tx, 100px), var(--ty, 100px)) scale(0.5); opacity: 0; }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes ping-slow {
+  0% { transform: scale(1); opacity: 1; }
+  75%, 100% { transform: scale(2); opacity: 0; }
+}
+
+.animate-scan {
+  animation: scan 3s linear infinite;
+}
+
+.animate-float-security {
+  animation: float-security 5s ease-in-out infinite;
+}
+
+.animate-data-packet {
+  animation: data-packet 3s ease-in-out infinite;
+  --tx: 100px;
+  --ty: 100px;
+}
+
+.animate-float-slow {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+.animate-ping-slow {
+  animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }

@@ -1,0 +1,17 @@
+{
+  "dependencies": {
+    "@nestjs/common": "^11.1.1",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/event-emitter": "^3.0.1",
+    "@nestjs/jwt": "^11.0.0",
+    "@nestjs/testing": "^11.1.1",
+    "ethers": "^5.8.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.15.18",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.3.3",
+    "typescript": "^5.8.3"
+  }
+}
