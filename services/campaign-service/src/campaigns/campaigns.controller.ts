@@ -9,6 +9,7 @@ import { Roles } from '../auth/roles.decorator';
 import { Request } from 'express';
 import { ProofDto } from './dto/proof.dto';
 import { FundReleaseDto } from './dto/fund-release.dto';
+import { FundReleaseRequest } from './campaigns.service';
 
 // Define a type for the user in the request
 interface RequestWithUser extends Request {
@@ -28,7 +29,7 @@ export class CampaignController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id') id: string): Promise<any> {
     return this.campaignService.findOne(id);
   }
 
@@ -80,8 +81,12 @@ export class CampaignController {
 
   @Post(':id/fund-release')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('organization')
-  async requestFundRelease(@Param('id') id: string, @Body() fundReleaseDto: FundReleaseDto, @Req() req: RequestWithUser) {
+  async requestFundRelease(
+    @Param('id') id: string,
+    @Body() fundReleaseDto: FundReleaseDto,
+    @Req() req: RequestWithUser
+  ): Promise<FundReleaseRequest> {
     return this.campaignService.requestFundRelease(id, fundReleaseDto, req.user.id);
   }
-}
+  }
+

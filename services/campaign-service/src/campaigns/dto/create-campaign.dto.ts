@@ -1,4 +1,4 @@
-// services/campaign-service/src/campaign/dto/create-campaign.dto.ts
+// src/campaigns/dto/create-campaign.dto.ts
 import { IsNotEmpty, IsString, IsNumber, IsOptional, IsDateString, IsUUID } from 'class-validator';
 
 export class CreateCampaignDto {

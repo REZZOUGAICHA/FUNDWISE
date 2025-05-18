@@ -7,11 +7,11 @@ export default registerAs('blockchain', () => ({
   
   // Contract addresses
   contracts: {
-    campaignManager: process.env.CAMPAIGN_MANAGER_ADDRESS || '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
-    donationManager: process.env.DONATION_MANAGER_ADDRESS || '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9',
-    fundReleaseManager: process.env.FUND_RELEASE_MANAGER_ADDRESS || '0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9',
-    proofStorage: process.env.PROOF_STORAGE_ADDRESS || '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0',
-    mockToken: process.env.MOCK_TOKEN_ADDRESS || '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+    campaignManager: process.env.CAMPAIGN_MANAGER_ADDRESS || '0xa513E6E4b8f2a923D98304ec87F64353C4D5C853',
+    donationManager: process.env.DONATION_MANAGER_ADDRESS || '0x8A791620dd6260079BF849Dc5567aDC3F2FdC318',
+    fundReleaseManager: process.env.FUND_RELEASE_MANAGER_ADDRESS || '0x610178dA211FEF7D417bC0e6FeD39F05609AD788',
+    proofStorage: process.env.PROOF_STORAGE_ADDRESS || '0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6',
+    mockToken: process.env.MOCK_TOKEN_ADDRESS || '0x0165878A594ca255338adfa4d48449f69242Eb8F',
   },
   
   // IPFS configuration

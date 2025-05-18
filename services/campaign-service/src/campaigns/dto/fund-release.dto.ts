@@ -1,4 +1,4 @@
-// services/campaign-service/src/campaign/dto/fund-release.dto.ts
+// src/campaigns/dto/fund-release.dto.ts
 import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
 
 export class FundReleaseDto {

@@ -1,4 +1,4 @@
-// services/campaign-service/src/campaign/dto/proof.dto.ts
+// src/campaigns/dto/proof.dto.ts
 import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class ProofDto {

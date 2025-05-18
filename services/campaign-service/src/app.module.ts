@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CampaignModule } from './campaigns/campaigns.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { IpfsModule } from './ipfs/ipfs.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { PrismaModule } from '../prisma/prisma.module';
       isGlobal: true,
     }),
     PrismaModule,
+    IpfsModule,
     CampaignModule,
   ],
   controllers: [AppController],

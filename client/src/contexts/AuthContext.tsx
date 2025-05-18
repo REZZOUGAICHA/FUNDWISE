@@ -1,115 +1,162 @@
-// src/contexts/AuthContext.tsx
 "use client";
 
+// contexts/AuthContext.tsx
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-
-type UserRole = 'public' | 'donor' | 'organization' | 'audit' ;
+import { useRouter } from 'next/navigation';
 
 interface User {
   id: string;
-  name: string;
   email: string;
-  role: UserRole;
-  isConnected: boolean;
+  role: string;
+  name?: string;
+  isConnected?: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
-  isLoading: boolean;
-  defaultRole: UserRole; // Add this
+  defaultRole: string;
   login: (email: string, password: string) => Promise<void>;
+  signup: (data: any) => Promise<void>;
   logout: () => void;
-  connectWallet: () => void;
-  disconnectWallet: () => void;
+  connectWallet: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-const defaultRole: UserRole = 'public'; // Default role 
-  // Check for existing session on mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        // In a real app, you'd check for an existing session with your backend
-        const storedUser = localStorage.getItem('fundwise_user');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        }
-      } catch (error) {
-        console.error('Auth check failed:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const [defaultRole, setDefaultRole] = useState('public');
+  const router = useRouter();
+  //print user role
+  console.log('User role:', user?.role);
 
-    checkAuth();
-  }, []);
-
-
-const login = async (email: string, password: string) => {
-  setIsLoading(true);
-  try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
+useEffect(() => {
+  // Check if user is logged in on mount
+  const token = localStorage.getItem('token');
+  const userRole = localStorage.getItem('userRole');
+  
+  if (token) {
+    // Validate token and get user data
+    fetchUserData(token);
+  } else if (userRole) {
+    setDefaultRole(userRole);
     
-    // Use defaultRole as the starting point
-    let role: UserRole = defaultRole;
-    
-    // Override based on email if needed
-    if (email.includes('org')) role = 'organization';
-    if (email.includes('audit')) role = 'audit';
-
-    
-    const user = {
-      id: '123',
-      name: email.split('@')[0],
-      email,
-      role, // This will now respect the defaultRole if not overridden
-      isConnected: false
-    };
-    
-    setUser(user);
-    localStorage.setItem('fundwise_user', JSON.stringify(user));
-  } finally {
-    setIsLoading(false);
+    // Also create a minimal user object if we have a role but no user data
+    if (!user) {
+      setUser({
+        id: 'unknown',
+        email: 'unknown',
+        role: userRole,
+        name: userRole.charAt(0).toUpperCase() + userRole.slice(1),
+        isConnected: false
+      });
+    }
   }
+}, []);
+
+
+  const fetchUserData = async (token: string) => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        setUser({
+          id: userData.id,
+          email: userData.email,
+          role: userData.role,
+          name: userData.fullName || userData.name,
+          isConnected: !!userData.walletAddress
+        });
+      } else {
+        // Token invalid, clear it
+        localStorage.removeItem('token');
+      }
+    } catch (error) {
+      console.error('Failed to fetch user data:', error);
+    }
+  };
+
+  const login = async (email: string, password: string) => {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Login failed');
+    }
+    
+    const data = await response.json();
+    localStorage.setItem('token', data.access_token);
+    localStorage.setItem('userRole', data.user.role);
+    
+    setUser({
+      id: data.user.id,
+      email: data.user.email,
+      role: data.user.role,
+      name: data.user.fullName || data.user.name,
+      isConnected: !!data.user.walletAddress
+    });
+  };
+
+  const signup = async (data: any) => {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Signup failed');
+    }
+    
+    const responseData = await response.json();
+    localStorage.setItem('token', responseData.access_token);
+    localStorage.setItem('userRole', responseData.user.role);
+    
+    setUser({
+      id: responseData.user.id,
+      email: responseData.user.email,
+      role: responseData.user.role,
+      name: responseData.user.fullName || responseData.user.name,
+      isConnected: !!responseData.user.walletAddress
+    });
+  };
+
+const logout = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('userRole');
+  localStorage.removeItem('userData');
+  setUser(null);
+  
+  window.location.href = '/';
 };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('fundwise_user');
-  };
 
-  const connectWallet = () => {
-    if (user) {
-      const updatedUser = { ...user, isConnected: true };
-      setUser(updatedUser);
-      localStorage.setItem('fundwise_user', JSON.stringify(updatedUser));
-    }
-  };
-
-  const disconnectWallet = () => {
-    if (user) {
-      const updatedUser = { ...user, isConnected: false };
-      setUser(updatedUser);
-      localStorage.setItem('fundwise_user', JSON.stringify(updatedUser));
-    }
+  const connectWallet = async () => {
+    // Implement wallet connection logic
+    // ...
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, defaultRole, login, logout, connectWallet, disconnectWallet }}>
+    <AuthContext.Provider value={{ user, defaultRole, login, signup, logout, connectWallet }}>
       {children}
     </AuthContext.Provider>
   );
-}
+};
 
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
+};

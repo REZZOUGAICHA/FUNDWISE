@@ -138,5 +138,35 @@
     },
     "transactionHash": "0x0e9b21e018b9ea715a84904810bf3b8454da4edac29ba3257cba5ebc742cafb8",
     "blockNumber": 166
+  },
+  {
+    "returnValues": {
+      "campaignId": "1",
+      "ngo": "0x8318732A33125DF8aaF59E44F8208598Da690Ecc",
+      "title": "Test Campaign",
+      "fundingGoal": "1000000000"
+    },
+    "transactionHash": "0x82386bca7d6bca8139e61aedc1dc279cc0f13c16c122cdd63a52248659f5b206",
+    "blockNumber": 9
+  },
+  {
+    "returnValues": {
+      "campaignId": "2",
+      "ngo": "0x7DDEE6B6F11F9283135770b648D7B1520C0E7365",
+      "title": "Test Campaign",
+      "fundingGoal": "1000000000"
+    },
+    "transactionHash": "0xa793c2dcb0712e56262a370780019448acbf5cee30be1f1b127e707f25912f9b",
+    "blockNumber": 16
+  },
+  {
+    "returnValues": {
+      "campaignId": "3",
+      "ngo": "0x5054C19Efdc1266D418dF0b3E07F269F56CE4e66",
+      "title": "Test Campaign",
+      "fundingGoal": "1000000000"
+    },
+    "transactionHash": "0x6b13e75b9cf95bb39cba4992249a59b8ed2215d34d2814c035a4a0b68394b47e",
+    "blockNumber": 23
   }
 ]

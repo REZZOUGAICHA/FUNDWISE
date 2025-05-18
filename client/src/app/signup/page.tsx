@@ -4,9 +4,21 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Mail, User, Building, Wallet, Network, ChevronRight, ShieldCheck, Globe, FileText, Lock, Key } from 'lucide-react';
+import axios from 'axios';
+
+// Create a reusable axios instance for API calls
+const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003', // API Gateway URL
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  }
+});
 
 // Security-focused blockchain animation component
 const BlockchainSecurityAnimation = () => {
+    
+
   const [isClient, setIsClient] = useState(false);
   
   useEffect(() => {
@@ -258,33 +270,98 @@ export default function Register() {
     setStep(prev => prev - 1);
   };
 
-  const handleSubmit = async (e: { preventDefault: () => void; }) => {
-    e.preventDefault();
-    
-    if (!validateStep()) return;
-    
-    setIsLoading(true);
-    
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // In a real app, you would call your registration API here with the appropriate data
-      // const endpoint = accountType === 'individual' ? '/api/auth/register/user' : '/api/auth/register/organization';
-      // const response = await fetch(endpoint, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(formData)
-      // });
-      
-      router.push('/verification');
-    } catch (err) {
-      setErrors({ form: 'An error occurred. Please try again.' });
-      console.error(err);
-    } finally {
-      setIsLoading(false);
+const handleSubmit = async (e: { preventDefault: () => void; }) => {
+  e.preventDefault();
+
+  if (!validateStep()) return;
+
+  setIsLoading(true);
+
+  try {
+    // Prepare the data based on account type
+    const signupData = accountType === 'individual'
+      ? {
+          email: formData.email,
+          password: formData.password,
+          fullName: formData.fullName,
+          avatarUrl: formData.avatarUrl || null,
+          bio: formData.bio || null,
+          walletAddress: formData.walletAddress || null,
+          role: 'donor'
+        }
+      : {
+          email: formData.email,
+          password: formData.password,
+          name: formData.name,
+          description: formData.description,
+          logoUrl: formData.logoUrl || null,
+          website: formData.website || null,
+          walletAddress: formData.orgWalletAddress || null,
+          legalDocuments: formData.legalDocuments || null,
+          role: 'organization'
+        };
+
+    // Try to sign up first
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
+    let response = await fetch(`${apiUrl}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(signupData)
+    });
+
+    let data = await response.json();
+    let token = data.token || data.access_token || (data.data && data.data.token);
+    let userRole = (data.user && data.user.role) || signupData.role;
+
+    // If signup succeeded and token is present, store and redirect
+    if (response.ok && token) {
+      localStorage.setItem('token', token);
+      localStorage.setItem('userRole', userRole);
+      window.location.href = '/';
+      return;
     }
-  };
+
+    // If signup failed or no token, attempt login (user might already exist)
+    if (!token) {
+      // Try login with the same credentials
+      try {
+        const loginResponse = await api.post('/api/auth/login', {
+          email: formData.email,
+          password: formData.password
+        });
+
+        if (loginResponse.data && loginResponse.data.token) {
+          localStorage.setItem('token', loginResponse.data.token);
+          localStorage.setItem('userRole', loginResponse.data.user?.role || signupData.role);
+          router.push('/');
+          return;
+        } else {
+          throw new Error('No authentication token received after login.');
+        }
+      } catch (loginErr) {
+        if (loginErr && typeof loginErr === 'object') {
+          const errObj = loginErr as any;
+          throw new Error(
+            errObj.response?.data?.message ||
+            errObj.message ||
+            'Signup and login both failed.'
+          );
+        } else {
+          throw new Error('Signup and login both failed.');
+        }
+      }
+    }
+  } catch (err) {
+    setErrors({ form: err instanceof Error ? err.message : 'An error occurred during signup. Please try again.' });
+    console.error('Signup/login error:', err);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+
+
+
 
   const renderStepContent = () => {
     switch(step) {

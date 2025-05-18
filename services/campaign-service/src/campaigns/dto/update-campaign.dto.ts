@@ -1,4 +1,4 @@
-// services/campaign-service/src/campaign/dto/update-campaign.dto.ts
+// src/campaigns/dto/update-campaign.dto.ts
 import { IsOptional, IsString, IsNumber, IsDateString } from 'class-validator';
 
 export class UpdateCampaignDto {

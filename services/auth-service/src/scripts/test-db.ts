@@ -16,7 +16,7 @@ async function main() {
     const users = await prisma.user.findMany();
     console.log(`Auth schema DB connection successful. Found ${users.length} users.`);
     
-    users.forEach(User => {
+    users.forEach((User: { id: any; email: any; }) => {
       console.log(`User: ${User.id}, ${User.email}`); // Adjust fields based on your schema
     });
 

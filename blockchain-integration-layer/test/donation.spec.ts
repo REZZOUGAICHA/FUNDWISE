@@ -19,19 +19,19 @@ class MockConfigService {
     if (key === 'blockchain.rpcUrl') return 'http://127.0.0.1:8545';
     if (key === 'blockchain.admin.privateKey') return '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
     if (key === 'blockchain.contracts.campaignManager') {
-      return '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512';
+      return '0xa513E6E4b8f2a923D98304ec87F64353C4D5C853';
     }
     if (key === 'blockchain.contracts.donationManager') {
       return '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9';
     }
     if (key === 'blockchain.contracts.fundReleaseManager') {
-      return '0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9';
+      return '0x610178dA211FEF7D417bC0e6FeD39F05609AD788';
     }
     if (key === 'blockchain.contracts.proofStorage') {
-      return '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0';
+      return '0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6';
     }
     if (key === 'blockchain.contracts.mockToken') {
-      return '0x5FbDB2315678afecb367f032d93F642f64180aa3';
+      return '0x0165878A594ca255338adfa4d48449f69242Eb8F';
     }
     
     return null;

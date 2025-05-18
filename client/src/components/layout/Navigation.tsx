@@ -26,12 +26,14 @@ interface NavItem {
 
 const Navigation = () => {
   const { user, defaultRole, logout, connectWallet } = useAuth();
+  console.log('User role:', user?.role);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+ 
   
   // Handle scroll effect
   useEffect(() => {
@@ -118,18 +120,14 @@ const Navigation = () => {
     ...baseNavItems,
     { 
       name: 'My Campaigns', 
-      path: '/my-campaigns', // Fixed spelling
+      path: '/my-campaigns',
       icon: <BarChart2 size={18} />,
       dropdown: [
-        { name: 'My Campaigns', path: '/my-campaigns' }, // Fixed spelling
-        { name: 'Create Campaign', path: '/campaigns/create' }
+        { name: 'My Campaigns', path: '/my-campaigns' }, 
+        { name: 'Create Campaign', path: '/campaigns/create' },
+        { name: 'Fund Release', path: '/fund-release', }
       ]
     },
-    { 
-      name: 'Fund Release', 
-      path: '/fund-release', 
-      icon: <CreditCard size={18} /> 
-    }
   ];
 
   const auditorNavItems: NavItem[] = [
@@ -152,7 +150,7 @@ const Navigation = () => {
       case 'organization':
         navItems = organizationNavItems;
         break;
-      case 'audit':
+      case 'auditor':
         navItems = auditorNavItems;
         break;
       default:
@@ -167,7 +165,7 @@ const Navigation = () => {
       case 'organization':
         navItems = organizationNavItems;
         break;
-      case 'audit':
+      case 'auditor':
         navItems = auditorNavItems;
         break;
       default:

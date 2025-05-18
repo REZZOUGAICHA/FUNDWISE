@@ -1,15 +1,35 @@
-// services/campaign-service/src/campaign/campaigns.service.ts
+// src/campaigns/campaigns.service.ts
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
+import { PinataService } from '../ipfs/pinata.service';
 import { ClientProxy } from '@nestjs/microservices';
 import { Inject } from '@nestjs/common';
-import { Organization } from './types/organization.type';
-import { FundReleaseRequest } from './types/fund-release-request.type';
 import { ProofDto } from './dto/proof.dto';
 import { FundReleaseDto } from './dto/fund-release.dto';
-import { PinataService } from '../ipfs/pinata.service';
+
+interface Organization {
+  id: string;
+  name: string;
+  description?: string;
+  logo_url?: string;
+  website?: string;
+  verification_status: string;
+  owner_id?: string;
+}
+
+export interface FundReleaseRequest {
+  id: string;
+  campaign_id: string;
+  organization_id: string;
+  amount: number;
+  purpose: string;
+  status: string;
+  requested_by: string;
+  created_at: Date;
+  updated_at: Date;
+}
 
 @Injectable()
 export class CampaignService {
@@ -41,7 +61,7 @@ export class CampaignService {
     const campaignsWithOrgNames = await Promise.all(
       campaigns.map(async (campaign) => {
         const organization = await this.prisma.$queryRaw<any[]>`
-          SELECT name FROM auth_service.organizations WHERE id = ${campaign.organization_id}
+          SELECT name FROM auth_service.organizations WHERE id = ${campaign.organization_id}::uuid
         `;
         
         return {
@@ -67,7 +87,7 @@ export class CampaignService {
     const organization = await this.prisma.$queryRaw<Organization[]>`
       SELECT id, name, description, logo_url, website, verification_status 
       FROM auth_service.organizations 
-      WHERE id = ${campaign.organization_id}
+      WHERE id = ${campaign.organization_id}::uuid
     `;
     
     // Get proofs
@@ -87,9 +107,10 @@ export class CampaignService {
     // Verify user is authorized for this organization
     const organization = await this.prisma.$queryRaw<Organization[]>`
       SELECT id FROM auth_service.organizations 
-      WHERE id = ${createCampaignDto.organization_id} AND owner_id = ${userId}
+      WHERE id = ${createCampaignDto.organization_id}::uuid AND owner_id = ${userId}::uuid
     `;
-    
+    console.log('Organization:', createCampaignDto.organization_id);
+    console.log('User ID:', userId);  
     if (!organization[0]) {
       throw new ForbiddenException('You are not authorized to create campaigns for this organization');
     }
@@ -137,7 +158,7 @@ export class CampaignService {
     // Verify user is authorized for this organization
     const organization = await this.prisma.$queryRaw<Organization[]>`
       SELECT id FROM auth_service.organizations 
-      WHERE id = ${campaign.organization_id} AND owner_id = ${userId}
+      WHERE id = ${campaign.organization_id}::uuid AND owner_id = ${userId}::uuid
     `;
     
     if (!organization[0]) {
@@ -179,7 +200,7 @@ export class CampaignService {
     // Verify user is authorized for this organization
     const organization = await this.prisma.$queryRaw<Organization[]>`
       SELECT id FROM auth_service.organizations 
-      WHERE id = ${campaign.organization_id} AND owner_id = ${userId}
+      WHERE id = ${campaign.organization_id}::uuid AND owner_id = ${userId}::uuid
     `;
     
     if (!organization[0]) {
@@ -212,7 +233,7 @@ export class CampaignService {
     // Verify user is authorized for this organization
     const organization = await this.prisma.$queryRaw<Organization[]>`
       SELECT id FROM auth_service.organizations 
-      WHERE id = ${campaign.organization_id} AND owner_id = ${userId}
+      WHERE id = ${campaign.organization_id}::uuid AND owner_id = ${userId}::uuid
     `;
     
     if (!organization[0]) {
@@ -233,23 +254,6 @@ export class CampaignService {
     });
   }
 
-  async getProofs(id: string) {
-    // Check if campaign exists
-    const campaign = await this.prisma.campaigns.findUnique({
-      where: { id },
-    });
-    
-    if (!campaign) {
-      throw new NotFoundException(`Campaign with ID ${id} not found`);
-    }
-    
-    // Get proofs
-    return this.prisma.proofs.findMany({
-      where: { campaign_id: id },
-      orderBy: { created_at: 'desc' },
-    });
-  }
-
   async addProof(id: string, proofDto: ProofDto, userId: string) {
     // Check if campaign exists
     const campaign = await this.prisma.campaigns.findUnique({
@@ -263,7 +267,7 @@ export class CampaignService {
     // Verify user is authorized for this organization
     const organization = await this.prisma.$queryRaw<Organization[]>`
       SELECT id FROM auth_service.organizations 
-      WHERE id = ${campaign.organization_id} AND owner_id = ${userId}
+      WHERE id = ${campaign.organization_id}::uuid AND owner_id = ${userId}::uuid
     `;
     
     if (!organization[0]) {
@@ -284,7 +288,7 @@ export class CampaignService {
         campaign_id: id,
         description: proofDto.description,
         amount_used: proofDto.amount_used,
-        ipfs_hash: ipfs_hash ?? '',
+        ipfs_hash: ipfs_hash || '',
         status: 'pending', // All proofs start as pending until verified
         submitted_by: userId,
       },
@@ -300,6 +304,23 @@ export class CampaignService {
     return proof;
   }
 
+  async getProofs(id: string) {
+    // Check if campaign exists
+    const campaign = await this.prisma.campaigns.findUnique({
+      where: { id },
+    });
+    
+    if (!campaign) {
+      throw new NotFoundException(`Campaign with ID ${id} not found`);
+    }
+    
+    // Get proofs
+    return this.prisma.proofs.findMany({
+      where: { campaign_id: id },
+      orderBy: { created_at: 'desc' },
+    });
+  }
+
   async requestFundRelease(id: string, fundReleaseDto: FundReleaseDto, userId: string) {
     // Check if campaign exists
     const campaign = await this.prisma.campaigns.findUnique({
@@ -313,7 +334,7 @@ export class CampaignService {
     // Verify user is authorized for this organization
     const organization = await this.prisma.$queryRaw<Organization[]>`
       SELECT id FROM auth_service.organizations 
-      WHERE id = ${campaign.organization_id} AND owner_id = ${userId}
+      WHERE id = ${campaign.organization_id}::uuid AND owner_id = ${userId}::uuid
     `;
     
     if (!organization[0]) {
@@ -324,6 +345,7 @@ export class CampaignService {
     const currentAmount = typeof campaign.current_amount === 'object' && 'toNumber' in campaign.current_amount
       ? campaign.current_amount.toNumber()
       : Number(campaign.current_amount);
+    
     if (fundReleaseDto.amount > currentAmount) {
       throw new ForbiddenException('Requested amount exceeds available funds');
     }
@@ -338,12 +360,12 @@ export class CampaignService {
         status, 
         requested_by
       ) VALUES (
-        ${id}, 
-        ${campaign.organization_id}, 
+        ${id}::uuid, 
+        ${campaign.organization_id}::uuid, 
         ${fundReleaseDto.amount}, 
         ${fundReleaseDto.purpose}, 
         'pending', 
-        ${userId}
+        ${userId}::uuid
       ) RETURNING *
     `;
     
