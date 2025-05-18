@@ -6,3 +6,12 @@ scrape_configs:
   - job_name: 'auth-service'
     static_configs:
       - targets: ['host.docker.internal:3001']
+
+  - job_name: 'compaing-service'
+    static_configs:
+      - targets: ['host.docker.internal:3007']
+
+  - job_name: 'donation-service'
+    static_configs:
+      - targets: ['host.docker.internal:3009']
+
