@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, UploadCloud, CheckCircle, AlertCircle, Clock, DollarSign, FileText, Calendar } from 'lucide-react';
+import axios from 'axios';
 
 // Mock campaign data
 const userCampaigns = [
@@ -31,6 +32,53 @@ export default function FundReleasePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
+    type Campaign = {
+      id: string;
+      title: string;
+      status: string;
+      current_amount: number;
+      target_amount: number;
+    };
+    const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isOrganization, setIsOrganization] = useState(false);
+  
+  useEffect(() => {
+    // Check if user is organization from localStorage instead of using useAuth
+    const userRole = localStorage.getItem('userRole');
+    setIsOrganization(userRole === 'organization');
+    
+    const fetchCampaigns = async () => {
+      try {
+        setLoading(true);
+        
+        // Create axios instance with auth token
+        const api = axios.create({
+          baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        // Add auth token if available
+        const token = localStorage.getItem('token');
+        if (token) {
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const response = await api.get('api/campaigns');
+        setCampaigns(response.data);
+      } catch (err) {
+        console.error('Error fetching campaigns:', err);
+        setError('Failed to load campaigns. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchCampaigns();
+  }, []);
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setFiles(Array.from(e.target.files));
@@ -58,6 +106,7 @@ export default function FundReleasePage() {
       }, 3000);
     }, 2000);
   };
+  console.log('Campaigns:', campaigns);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-gray-200 pb-16 mt-15">
@@ -124,7 +173,7 @@ export default function FundReleasePage() {
                         required
                       >
                         <option value="">Select a campaign</option>
-                        {userCampaigns.map(campaign => (
+                        {campaigns.map(campaign => (
                           <option key={campaign.id} value={campaign.id}>
                             {campaign.title} ({campaign.current_amount} ETH / {campaign.target_amount} ETH)
                           </option>

@@ -33,6 +33,9 @@ export interface FundReleaseRequest {
 
 @Injectable()
 export class CampaignService {
+  getEligibleForFundRelease(organizationId: string, status: string | undefined) {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     private prisma: PrismaService,
     private pinataService: PinataService,
@@ -77,6 +80,7 @@ export class CampaignService {
   async findOne(id: string) {
     const campaign = await this.prisma.campaigns.findUnique({
       where: { id },
+      
     });
     
     if (!campaign) {

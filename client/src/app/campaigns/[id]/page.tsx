@@ -1,67 +1,38 @@
-import Link from 'next/link';
+// app/campaigns/[id]/page.tsx
 import CampaignDetails, { Campaign } from '@/components/campaigns/CampaignDetails';
 import { ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
+import axios from 'axios';
 
-// This would normally come from an API call based on the ID
-const getCampaignData = (id: string): Campaign | null => {
-  const campaigns: Campaign[] = [
-    {
-      id: '1',
-      title: 'Clean Water Initiative',
-      description: 'Fund 10 new wells in communities facing water scarcity. Access to clean water is a fundamental human right, yet millions around the world still lack this basic necessity. This campaign aims to address this critical issue by funding the construction of 10 new wells in communities facing severe water scarcity. Your contribution will help provide clean, safe drinking water to thousands of people, improving health outcomes and quality of life.',
-      imageUrl: '/background4.jpg',
-      raised: 15,
-      goal: 20,
-      status: 'active',
-      isVerified: true,
-      organization: {
-        id: '1',
-        name: 'Global Relief',
-        email: 'info@globalrelief.org',
-        phone: '+1 555-123-4567',
-      },
-      startDate: '2025-04-15',
-      endDate: '2025-07-15',
-      updates: [
-        {
-          date: '2025-05-01',
-          title: 'First well location selected',
-          content: 'We have selected the first community for well construction. Work will begin next week.'
-        },
-        {
-          date: '2025-05-10',
-          title: 'Construction begins',
-          content: 'Construction equipment has arrived and ground has been broken on our first well.'
-        }
-      ]
+export default async function CampaignDetailPage({ params }: { params: { id: string } }) {
+  let campaign = null;
+  function mapCampaignData(raw: any): Campaign {
+  return {
+    id: raw.id,
+    title: raw.title,
+    description: raw.description,
+    imageUrl: raw.image_url ?? '/campaign-placeholder.jpg',
+    raised: Number(raw.current_amount),
+    goal: Number(raw.target_amount),
+    startDate: new Date(raw.start_date).toLocaleDateString(),
+    endDate: new Date(raw.end_date).toLocaleDateString(),
+    status: raw.status,
+    isVerified: raw.organization?.verification_status === 'approved',
+    organization: {
+      id: raw.organization.id,
+      name: raw.organization.name,
+      email: 'contact@placeholder.com', // remplace si disponible
+      phone: 'N/A', // idem
     },
-    {
-      id: '2',
-      title: 'Education for All',
-      description: 'Help us build a new school in rural Tanzania to serve 500 children',
-      imageUrl: '/campaign-placeholder.jpg',
-      raised: 0,
-      goal: 15,
-      status: 'pending',
-      isVerified: false,
-      organization: {
-        id: '2',
-        name: 'Education First',
-        email: 'contact@educationfirst.org',
-        phone: '+1 555-987-6543',
-      },
-      startDate: '2025-05-01',
-      endDate: '2025-08-01',
-      updates: []
-    }
-  ];
-  
-  return campaigns.find(campaign => campaign.id === id) || null;
-};
+  };
+}
 
-export default function CampaignDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
-  const campaign = getCampaignData(id);
+  try {
+    const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003'}/api/campaigns/${params.id}`);
+    campaign = res.data;
+  } catch (err) {
+    console.error('Error fetching campaign:', err);
+  }
 
   if (!campaign) {
     return (
@@ -77,7 +48,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
       </div>
     );
   }
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-gray-200 pb-16">
       <div className="container mx-auto px-4 py-8">
@@ -88,11 +59,9 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to campaigns
         </Link>
-        
-        <CampaignDetails campaign={campaign} />
+        <CampaignDetails campaign={mapCampaignData(campaign)} />
+
       </div>
     </div>
   );
 }
-
-

@@ -61,6 +61,9 @@ const handleSubmit = async (e: { preventDefault: () => void; }) => {
     // Extract user role from the response
     if (response.data.user && response.data.user.role) {
       localStorage.setItem('userRole', response.data.user.role);
+      localStorage.setItem('userId', response.data.user.id);
+      console.log('User ID stored:', response.data.user.id);
+
 
       console.log('User role stored:', response.data.user.role);
     } else {

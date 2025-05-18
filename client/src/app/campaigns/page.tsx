@@ -1,51 +1,53 @@
+"use client";
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import CampaignList from '@/components/campaigns/CampaignList';
 import { PlusCircle, Zap } from 'lucide-react';
-
-// This would normally come from an API call
-const mockCampaigns = [
-  {
-    id: '1',
-    title: 'Clean Water Initiative',
-    description: 'Fund 10 new wells in communities facing water scarcity',
-    image_url: '/background1.jpg',
-    target_amount: 20,
-    current_amount: 15,
-    start_date: '2025-04-15T00:00:00Z',
-    end_date: '2025-07-15T23:59:59Z',
-    status: 'active',
-    organization_id: '1',
-    organizationName: 'Global Relief'
-  },
-  {
-    id: '2',
-    title: 'Education for All',
-    description: 'Help us build a new school in rural Tanzania to serve 500 children',
-    image_url: '/background7.jpg',
-    target_amount: 15,
-    current_amount: 0,
-    start_date: '2025-05-01T00:00:00Z',
-    end_date: '2025-08-01T23:59:59Z',
-    status: 'pending',
-    organization_id: '2',
-    organizationName: 'Education First'
-  },
-  {
-    id: '3',
-    title: 'Medical Supplies Drive',
-    description: 'Provide essential medical supplies to underserved communities',
-    image_url: '/campaign-placeholder.jpg',
-    target_amount: 10,
-    current_amount: 5,
-    start_date: '2025-03-01T00:00:00Z',
-    end_date: '2025-06-01T23:59:59Z',
-    status: 'active',
-    organization_id: '3',
-    organizationName: 'Health Alliance'
-  }
-];
+import axios from 'axios';
 
 export default function CampaignsPage() {
+  const [campaigns, setCampaigns] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isOrganization, setIsOrganization] = useState(false);
+  
+  useEffect(() => {
+    // Check if user is organization from localStorage instead of using useAuth
+    const userRole = localStorage.getItem('userRole');
+    setIsOrganization(userRole === 'organization');
+    
+    const fetchCampaigns = async () => {
+      try {
+        setLoading(true);
+        
+        // Create axios instance with auth token
+        const api = axios.create({
+          baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        // Add auth token if available
+        const token = localStorage.getItem('token');
+        if (token) {
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const response = await api.get('api/campaigns');
+        setCampaigns(response.data);
+      } catch (err) {
+        console.error('Error fetching campaigns:', err);
+        setError('Failed to load campaigns. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchCampaigns();
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-gray-200 pb-16 mt-10">
       {/* Header Banner */}
@@ -66,17 +68,29 @@ export default function CampaignsPage() {
       </div>
       
       <div className="container mx-auto px-4 -mt-10 relative z-20">
-        <div className="flex justify-end mb-6">
-          <Link
-            href="/campaigns/create"
-            className="px-5 py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 text-black rounded-lg font-medium hover:from-emerald-500 hover:to-emerald-400 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-emerald-500/30 flex items-center"
-          >
-            <PlusCircle className="mr-2 h-5 w-5" />
-            Create Campaign
-          </Link>
-        </div>
+        {isOrganization && (
+          <div className="flex justify-end mb-6">
+            <Link
+              href="/campaigns/create"
+              className="px-5 py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 text-black rounded-lg font-medium hover:from-emerald-500 hover:to-emerald-400 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-emerald-500/30 flex items-center"
+            >
+              <PlusCircle className="mr-2 h-5 w-5" />
+              Create Campaign
+            </Link>
+          </div>
+        )}
 
-        <CampaignList campaigns={mockCampaigns} />
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
+          </div>
+        ) : error ? (
+          <div className="bg-red-900/20 border border-red-900 rounded-lg p-4 text-red-400 text-center">
+            {error}
+          </div>
+        ) : (
+          <CampaignList campaigns={campaigns} />
+        )}
       </div>
     </div>
   );

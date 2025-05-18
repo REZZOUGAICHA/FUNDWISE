@@ -317,6 +317,9 @@ const handleSubmit = async (e: { preventDefault: () => void; }) => {
     if (response.ok && token) {
       localStorage.setItem('token', token);
       localStorage.setItem('userRole', userRole);
+      localStorage.setItem('userId', data.user?.id || '');
+
+
       window.location.href = '/';
       return;
     }
@@ -591,7 +594,7 @@ const handleSubmit = async (e: { preventDefault: () => void; }) => {
             <h3 className="text-xl font-semibold text-white text-center mb-6">Complete Your Profile</h3>
             
             <div>
-              <label htmlFor="fullName" className="block text-white text-sm font-medium mb-2">Full Name</label>
+              <label htmlFor="fullName" className="block text-white text-sm font-medium mb-2">Username</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <div className="w-6 h-6 bg-emerald-500/20 rounded-md flex items-center justify-center">

@@ -32,13 +32,13 @@ export class ProxyService {
       console.log("here ?")
       return this.proxyRequest(request, this.authServiceUrl, '/api');
     }
+    if (url.startsWith('/api/campaign')) {
+          return this.proxyRequest(request, this.campaignServiceUrl, 'api/');
+    }
 
     return this.checkAccessControl(request).pipe(
       switchMap((user) => {
-        console.log(request)
-        if (url.startsWith('/api/campaign')) {
-          return this.proxyRequest(request, this.campaignServiceUrl, '/api/v1/campaign');
-        }
+       
 
         if (url.startsWith('/api/donation')) {
           return this.proxyRequest(request, this.donationServiceUrl, '/api/v1/donation');
