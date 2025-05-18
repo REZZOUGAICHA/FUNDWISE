@@ -34,6 +34,8 @@ export class AppService {
 
     const token = this.jwtService.sign(payload);
 
+    console.log("Login success, token : ", token)
+
     return {
       token,
       user: {

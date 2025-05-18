@@ -26,9 +26,9 @@ export class ProxyService {
 
   handleRequest(request: AuthenticatedRequest): Observable<AxiosResponse<any>> {
     const url = request.originalUrl;
+    console.log("API Gateway accessed, url ends with ",url)
 
     if (url.startsWith('/api/auth')) {
-      console.log("here ?")
       return this.proxyRequest(request, this.authServiceUrl, '/api');
     }
 
@@ -55,6 +55,7 @@ export class ProxyService {
     const authHeader = request.headers['authorization'] || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
     if (!token) {
+      console.log("Missing JWT token")
       return throwError(() => new UnauthorizedException('Missing JWT token'));
     }
 
