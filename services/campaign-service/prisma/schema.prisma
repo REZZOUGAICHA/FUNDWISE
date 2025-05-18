@@ -1,46 +1,66 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["multiSchema"]
 }
-
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["campaign_service"]
+  schemas  = ["donation_service", "auth_service"]
 }
 
+model donor_transactions {
+  id             String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  donor_id       String              @db.Uuid
+  transaction_id String              @unique @db.Uuid
+  created_at     DateTime            @default(now()) @db.Timestamptz(6)
+  details        transaction_details? @relation("DonorTransactionToDetails", fields: [transaction_id], references: [id])
+  donor          profiles            @relation(fields: [donor_id], references: [id])
 
-model campaigns {
-  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  title           String
-  description     String
-  target_amount   Decimal   @db.Decimal
-  current_amount  Decimal   @default(0) @db.Decimal
-  start_date      DateTime  @default(now()) @db.Timestamptz(6)
-  end_date        DateTime  @db.Timestamptz(6)
-  image_url       String?
-  ipfs_hash       String?
-  status          String    @default("active")
-  organization_id String    @db.Uuid
-  created_at      DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at      DateTime  @default(now()) @db.Timestamptz(6)
-  proofs          proofs[]
-
-  @@schema("campaign_service")
+  @@schema("donation_service")
 }
 
-model proofs {
-  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  campaign_id   String    @db.Uuid
-  description   String
-  amount_used   Decimal   @db.Decimal
-  ipfs_hash     String
-  status        String    @default("pending")
-  created_at    DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
-  submitted_by  String    @db.Uuid
-  campaign      campaigns @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+model transaction_details {
+  id               String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  amount           Decimal           @db.Decimal
+  encrypted_amount String?
+  campaign_id      String            @db.Uuid
+  transaction_hash String            @unique
+  status           String            @default("pending")
+  message          String?
+  created_at       DateTime          @default(now()) @db.Timestamptz(6)
+  payment_method   String
+  transaction      donor_transactions? @relation("DonorTransactionToDetails")
 
-  @@schema("campaign_service")
+  @@schema("donation_service")
+}
+
+model public_donation_stats {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  campaign_id String   @db.Uuid
+  amount      Decimal  @db.Decimal
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@schema("donation_service")
+}
+
+model profiles {
+  id                    String          @id @db.Uuid
+  email                 String          @unique
+  donor_transactions    donor_transactions[]
+
+  @@schema("auth_service")
+}
+
+model Donation {
+  id            String   @id @default(uuid())
+  campaign_id   String
+  donor_id      String
+  amount        Float
+  transaction_id String
+  status        String
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@schema("donation_service")
 }

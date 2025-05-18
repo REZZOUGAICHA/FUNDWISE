@@ -1,19 +1,15 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { PrismaModule } from '../prisma/prisma.module';
-import { IpfsModule } from './ipfs/ipfs.module';
-import { CampaignsModule } from './campaigns/campaigns.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { DonationsModule } from './donations.module';
+import { HeartbeatService } from './heartbeat.service';
+import { MetricsModule } from './metrics.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
-    PrismaModule,
-    IpfsModule,
-    CampaignsModule
+    ScheduleModule.forRoot(),
+    MetricsModule,
+    DonationsModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  providers: [HeartbeatService],
 })
 export class AppModule {}
