@@ -51,3 +51,16 @@ model profiles {
 
   @@schema("auth_service")
 }
+
+model Donation {
+  id            String   @id @default(uuid())
+  campaign_id   String
+  donor_id      String
+  amount        Float
+  transaction_id String
+  status        String
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@schema("donation_service")
+}
