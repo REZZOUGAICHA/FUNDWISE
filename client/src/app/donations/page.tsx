@@ -3,7 +3,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { CheckCircle, Clock, AlertCircle, Search, Filter, ArrowRight, DollarSign } from 'lucide-react';
+import { CheckCircle, Clock, AlertCircle, Search, Filter, ArrowRight, DollarSign, X } from 'lucide-react';
+import { loadStripe } from '@stripe/stripe-js';
+import { useSearchParams } from 'next/navigation';
+
+// Initialize Stripe
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 type Donation = {
   id: string;
@@ -23,12 +28,28 @@ type Donation = {
 };
 
 export default function UserDonationsPage() {
+  const searchParams = useSearchParams();
   const [donations, setDonations] = useState<Donation[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [displayedDonations, setDisplayedDonations] = useState<Donation[]>([]);
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
   
+  useEffect(() => {
+    // Check for payment status in URL
+    const success = searchParams.get('success');
+    const canceled = searchParams.get('canceled');
+    
+    if (success === 'true') {
+      setPaymentSuccess('Payment successful! Thank you for your donation.');
+    } else if (canceled === 'true') {
+      setPaymentError('Payment was canceled.');
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     // Fetch user donations
     const fetchDonations = async () => {
@@ -149,6 +170,48 @@ export default function UserDonationsPage() {
     }
   };
 
+  const handlePayment = async (amount: number, campaignId: string) => {
+    try {
+      setProcessingPayment(true);
+      setPaymentError(null);
+
+      // Create a payment intent on the server
+      const response = await fetch('/api/create-payment-intent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: amount * 100, // Convert to cents
+          campaignId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Payment failed');
+      }
+
+      // Load Stripe
+      const stripe = await stripePromise;
+      if (!stripe) throw new Error('Stripe failed to load');
+
+      // Redirect to Stripe Checkout
+      const { error } = await stripe.redirectToCheckout({
+        sessionId: data.sessionId,
+      });
+
+      if (error) {
+        throw error;
+      }
+    } catch (err) {
+      setPaymentError(err instanceof Error ? err.message : 'Payment failed');
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-gray-200 flex items-center justify-center">
@@ -163,6 +226,37 @@ export default function UserDonationsPage() {
         <div className="max-w-6xl mx-auto">
           <h1 className="text-3xl font-bold text-white mb-2">Your Donations</h1>
           <p className="text-emerald-400 mb-8">Track all your contributions and their impact</p>
+          
+          {/* Payment Status Notifications */}
+          {paymentSuccess && (
+            <div className="mb-6 bg-emerald-500/20 border border-emerald-500/30 rounded-lg p-4 flex items-center justify-between">
+              <div className="flex items-center">
+                <CheckCircle className="h-5 w-5 text-emerald-500 mr-2" />
+                <p className="text-emerald-500">{paymentSuccess}</p>
+              </div>
+              <button
+                onClick={() => setPaymentSuccess(null)}
+                className="text-emerald-500 hover:text-emerald-400"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          )}
+
+          {paymentError && (
+            <div className="mb-6 bg-red-500/20 border border-red-500/30 rounded-lg p-4 flex items-center justify-between">
+              <div className="flex items-center">
+                <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+                <p className="text-red-500">{paymentError}</p>
+              </div>
+              <button
+                onClick={() => setPaymentError(null)}
+                className="text-red-500 hover:text-red-400"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          )}
           
           {/* Filters and Search */}
           <div className="bg-zinc-900/80 backdrop-blur-sm rounded-xl border border-zinc-800 p-6 mb-8 shadow-xl">
@@ -274,6 +368,13 @@ export default function UserDonationsPage() {
                         >
                           View Campaign
                         </Link>
+                        <button
+                          onClick={() => handlePayment(donation.amount, donation.campaign.id)}
+                          disabled={processingPayment}
+                          className="px-4 py-2 bg-emerald-600 text-black rounded-lg hover:bg-emerald-500 transition-all duration-300 text-center text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {processingPayment ? 'Processing...' : 'Donate Again'}
+                        </button>
                         <Link 
                           href={`/donations/track/${donation.transactionHash}`}
                           className="px-4 py-2 bg-emerald-600 text-black rounded-lg hover:bg-emerald-500 transition-all duration-300 text-center text-sm"
