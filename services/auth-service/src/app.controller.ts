@@ -9,11 +9,11 @@ export class AppController {
   
 
    @Post('auth/login')
-    async auth(@Body() body: { email: string; password: string }): Promise<{ success: boolean; token?: string; error?: string }> {
+    async auth(@Body() body: { email: string; password: string }): Promise<{ success: boolean; token?: string;user?: any, error?: string }> {
       try {
           this.logger.log(`Auth called with body: ${JSON.stringify(body)}`);
         const result = await this.appService.auth(body.email, body.password);
-        return { success: true, token: result.token };
+        return { success: true, token: result.token , user: result.user};
       } catch (error) {
         return { success: false, error: error.message };
       }

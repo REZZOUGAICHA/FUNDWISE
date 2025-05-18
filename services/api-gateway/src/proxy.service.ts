@@ -26,7 +26,6 @@ export class ProxyService {
 
   handleRequest(request: AuthenticatedRequest): Observable<AxiosResponse<any>> {
     const url = request.originalUrl;
-    console.log(url)
 
     if (url.startsWith('/api/auth')) {
       console.log("here ?")
@@ -35,7 +34,6 @@ export class ProxyService {
 
     return this.checkAccessControl(request).pipe(
       switchMap((user) => {
-        console.log(request)
         if (url.startsWith('/api/campaign')) {
           return this.proxyRequest(request, this.campaignServiceUrl, '/api/v1/campaign');
         }
@@ -45,7 +43,6 @@ export class ProxyService {
         }
 
         if (url.startsWith('/api/verification')) {
-          console.log("toooo")
           return this.proxyRequest(request, this.verificationServiceUrl, '/api');
         }
 
@@ -55,20 +52,15 @@ export class ProxyService {
   }
 
   private checkAccessControl(request: AuthenticatedRequest): Observable<any> {
-    console.log("verifi?")
     const authHeader = request.headers['authorization'] || '';
-    console.log(authHeader)
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    console.log(token);
     if (!token) {
       return throwError(() => new UnauthorizedException('Missing JWT token'));
     }
 
     try {
-      console.log("try ?")
       const decoded = this.jwtService.verify(token);
       request.user = decoded;
-      console.log(decoded)
 
       return this.httpService
         .post(

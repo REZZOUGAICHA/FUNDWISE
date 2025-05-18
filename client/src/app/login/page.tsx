@@ -54,7 +54,8 @@ export default function Login() {
       
       // Store the JWT token in localStorage
       localStorage.setItem('token', response.data.token);
-    
+      localStorage.setItem('user', response.data.user);
+
       router.push('/verification-portal');
     } catch (err: any) {
       console.error('Login error:', err);
