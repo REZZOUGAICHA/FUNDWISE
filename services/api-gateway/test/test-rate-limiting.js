@@ -15,7 +15,7 @@ async function sendRequest(index) {
   const startTime = Date.now(); 
   try {
     console.log(`Sending request #${index+1}...`);
-    const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMTExMTExMS1hYWFhLTRhYWEtYmJiYi0xMTExMTExMTExMTIiLCJyb2xlIjoiYXVkaXRvciIsImlhdCI6MTc0NzU2MTkxNSwiZXhwIjoxNzQ3NjQ4MzE1fQ.3K5wuPOyVczPX6ZwRnQFpDhGiwu3EQKEIjYsAO_tc3Y'; 
+    const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMTExMTExMS1hYWFhLTRhYWEtYmJiYi0xMTExMTExMTExMTIiLCJyb2xlIjoiYXVkaXRvciIsImlhdCI6MTc0NzU2NjY5NSwiZXhwIjoxNzQ3NjUzMDk1fQ.kvP_BD0lK5d3cXscC5ba2ceRyL71fNmwUx9h_ZpY7tU'; 
     const response = await axios.get(`${API_GATEWAY_URL}${VERIFICATION_ENDPOINT}`, {
         headers: {
             Authorization: `Bearer ${token}`,

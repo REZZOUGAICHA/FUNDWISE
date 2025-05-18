@@ -17,7 +17,7 @@ export class AccessControlService {
 
     //only "auditor" can access verification routes
     if (path.startsWith('/api/verification')) {
-      console.log(`Role authorization: ${user.role === 'auditor'}`)
+      console.log(`Role authorization for url ${path}: ${user.role === 'auditor'}`)
       return user.role === 'auditor';
     }
 
